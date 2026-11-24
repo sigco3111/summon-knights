@@ -210,7 +210,9 @@ export function App() {
             setCoins(q.coins | 0); setShards(q.shards | 0); setRegion(Math.min(q.region | 0, REGIONS.length - 1)); setStageIdx(q.stage | 0); setCleared(q.cleared || {}); battleRef.current = null; setPhase('prep'); setMsg('불러왔습니다'); setMap(false);
         } catch { setMsg('저장 코드를 읽지 못했습니다'); }
     };
-    const resetAll = () => { setUnits([]); setCoins(12); setShards(0); setRegion(0); setStageIdx(0); setCleared({}); battleRef.current = null; setPhase('prep'); setMap(false); setMsg('처음부터 시작'); };
+    const [confirmReset, setConfirmReset] = useState(false);
+    useEffect(() => { if (!confirmReset) return; const t = setTimeout(() => setConfirmReset(false), 4000); return () => clearTimeout(t); }, [confirmReset]);
+    const resetAll = () => { if (!confirmReset) { setConfirmReset(true); return; } setConfirmReset(false); setUnits([]); setCoins(12); setShards(0); setRegion(0); setStageIdx(0); setCleared({}); battleRef.current = null; setPhase('prep'); setMap(false); setMsg('처음부터 시작'); };
 
     const reg = REGIONS[region];
     const board = units.filter((u) => u.cell >= 0);
@@ -448,7 +450,7 @@ export function App() {
             <div className="sb-xfer"><b>저장 코드</b><small>자동 저장이 안 되는 환경에서는 코드를 복사해 보관하세요.</small>
                 <textarea value={xfer} onChange={(e) => setXfer(e.target.value)} rows={3} aria-label="저장 코드" />
                 <div><button type="button" className="sb-btn sm ghost" onClick={exportSave}>내보내기</button> <button type="button" className="sb-btn sm ghost" onClick={importSave} disabled={phase === 'battle' || !xfer}>불러오기</button></div></div>
-            <button type="button" className="sb-btn sm ghost" onClick={resetAll}>진행 초기화</button>
+            <button type="button" className="sb-btn sm ghost" onClick={resetAll}>{confirmReset ? '한 번 더 누르면 초기화' : '진행 초기화'}</button>
             <p className="sb-credit">스프라이트: LuizMelo 팩(Hero Knight 1-2, Fantasy Warrior, Medieval Warrior 1-3, Medieval King 1-2, Martial Hero 1-3, Huntress 1-2, Evil Wizard 1-3, Fire Worm, Monsters Creatures Fantasy 1-2), Wizard Pack. 보스(3-8지역): chierit (CC-BY 4.0) — Boss: Demon Slime, Boss: Frost Guardian, Free Cthulhu, Elementals: Crystal Mauler / Fire Knight / Wind Hashashin (chierit.itch.io). 배경: 8개 지역 모두 AI 생성(쿼터뷰 전장 배경).</p>
         </div>}
     </div>;
