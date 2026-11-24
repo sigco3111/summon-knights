@@ -111,6 +111,8 @@ export function App() {
     const [stageIdx, setStageIdx] = useState(0);
     const [cleared, setCleared] = useState<Record<string, boolean>>({});
     const [sel, setSel] = useState<number | null>(null);
+    const hoverRef = useRef<number | null>(null);
+    const flashCellRef = useRef<{ cell: number; until: number } | null>(null);
     const [phase, setPhase] = useState<'prep' | 'battle' | 'win' | 'lose'>('prep');
     const [reels, setReels] = useState<(number | null)[]>([null, null, null]);
     const [reelRar, setReelRar] = useState<(number | null)[]>([null, null, null]);
@@ -239,7 +241,7 @@ export function App() {
                     setPhase(b.result);
                 }
             }
-            if (c) { const ctx = c.getContext('2d'); if (ctx) drawBattle(ctx, b, unitsRef.current.filter((u) => u.cell >= 0), bgsRef.current, REGIONS[regionRef.current].bg, null); fxRef.current?.draw(ctx); }
+            if (c) { const ctx = c.getContext('2d'); if (ctx) drawBattle(ctx, b, unitsRef.current.filter((u) => u.cell >= 0), bgsRef.current, REGIONS[regionRef.current].bg, phaseRef.current === 'prep' ? (flashCellRef.current && performance.now() < flashCellRef.current.until ? flashCellRef.current.cell : hoverRef.current) : null); fxRef.current?.draw(ctx); }
             raf = requestAnimationFrame(loop);
         };
         raf = requestAnimationFrame(loop);
@@ -266,12 +268,47 @@ export function App() {
 
     const onReelStop = useCallback(() => setStopped((c) => c + 1), []);
 
+    const cellAt = (x: number, y: number): number => {
+        // 가장 가까운 칸으로 스냅(사각지대·중첩 없음): 열 경계 68/120, 행 경계 167/201
+        if (x < 10 || x > 178 || y < 120 || y > 245) return -1;
+        const col = Math.max(0, Math.min(2, Math.round((x - 42) / 52)));
+        const row = Math.max(0, Math.min(2, Math.round((y - 150) / 34)));
+        return row * 3 + col;
+    };
+
+    const onCanvasMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+        if (phase === 'battle') { hoverRef.current = null; return; }
+        const r = e.currentTarget.getBoundingClientRect();
+        const x = ((e.clientX - r.left) / r.width) * W; const y = ((e.clientY - r.top) / r.height) * H;
+        const c = cellAt(x, y); hoverRef.current = c < 0 ? null : c;
+    };
+
+    const autoPlace = () => {
+        if (phase === 'battle') return;
+        const ORDER: Record<string, number> = { '전열': 0, '딜러': 1, '원거리': 2, '지원': 3 };
+        const COLS: Record<string, number> = { '전열': 2, '딜러': 1, '원거리': 0, '지원': 0 };
+        const placed = units.filter((u) => u.cell >= 0);
+        const waiting = units.filter((u) => u.cell < 0).sort((a, b) => (ORDER[a.def.role] - ORDER[b.def.role]) || (b.lv - a.lv));
+        const used = new Set(placed.map((u) => u.cell));
+        const assign = new Map<number, number>();
+        for (const u of waiting) {
+            if (used.size >= MAX_BOARD) break;
+            const pref = COLS[u.def.role];
+            const order = [pref, 2, 1, 0];
+            let put = -1;
+            for (const col of order) { for (let row = 0; row < 3; row++) { const c = row * 3 + col; if (!used.has(c)) { put = c; break; } } if (put >= 0) break; }
+            if (put >= 0) { used.add(put); assign.set(u.uid, put); }
+        }
+        if (!assign.size) { setMsg('빈 칸에 놓을 대기 유닛이 없습니다(기존 배치는 그대로)'); return; }
+        setUnits(units.map((u) => (assign.has(u.uid) ? { ...u, cell: assign.get(u.uid)! } : u)));
+        setMsg(`빈 칸에 자동 배치 ${assign.size}기(기존 배치 유지) · 내리기: 배치된 유닛 누르기`);
+    };
+
     const onCanvas = (e: React.PointerEvent<HTMLCanvasElement>) => {
         if (phase === 'battle') return;
         const r = e.currentTarget.getBoundingClientRect();
         const x = ((e.clientX - r.left) / r.width) * W; const y = ((e.clientY - r.top) / r.height) * H;
-        let cell = -1;
-        for (let c = 0; c < 9; c++) { const p = cellPos(c); if (Math.abs(x - p.x) < 22 && y > p.y - 50 && y < p.y + 12) cell = c; }
+        const cell = cellAt(x, y);
         if (cell < 0) return;
         const here = units.find((u) => u.cell === cell);
         if (sel !== null) {
@@ -279,6 +316,7 @@ export function App() {
             else if (board.length >= MAX_BOARD) { setMsg(`출전은 최대 ${MAX_BOARD}명. 배치된 유닛을 눌러 내리세요`); return; }
             else setUnits(units.map((u) => (u.uid === sel ? { ...u, cell } : u)));
             { const pp = cellPos(cell); fxRef.current?.add({ k: 'death', x: pp.x, y: pp.y - 6, flip: false }); }
+            flashCellRef.current = { cell, until: performance.now() + 800 };
             setSel(null);
         } else if (here) setUnits(units.map((u) => (u.uid === here.uid ? { ...u, cell: -1 } : u)));
     };
@@ -310,7 +348,7 @@ export function App() {
         </div>
         <div className="sb-cabinet">
         <div className="sb-field">
-            <canvas ref={canvasRef} width={W} height={H} className="sb-canvas" onPointerDown={onCanvas} aria-label="전장" />
+            <canvas ref={canvasRef} width={W} height={H} className="sb-canvas" onPointerDown={onCanvas} onPointerMove={onCanvasMove} onPointerLeave={() => { hoverRef.current = null; }} aria-label="전장" />
             {phase === 'battle' && <div className="sb-prog"><i style={{ width: `${kills[1] ? (kills[0] / kills[1]) * 100 : 0}%` }} /><span>{kills[0]}/{kills[1]}</span></div>}
             {(phase === 'win' || phase === 'lose') && <div className={`sb-result ${phase}`}>{phase === 'win' ? '승리' : '패배'}<small>{msg}</small></div>}
             {!ready && <div className="sb-result">{loadError ? '일부 에셋을 불러오지 못했습니다. 새로고침 해주세요.' : `불러오는 중 ${loadProg}/${urls.length + 10}`}</div>}
@@ -325,16 +363,16 @@ export function App() {
             <div className={`sb-reels${flash ? ' flash' : ''}`}>{[0, 1, 2].map((i) => <div key={i} className={`sb-reel${spin && i < stopped ? ' hit' : ''}`} style={!spinning && reelRar[i] !== null ? { borderColor: RARITY_COLOR[reelRar[i] as 0 | 1 | 2] } : undefined}>{spinning || spin ? <Reel idx={i} spin={spin} prev={reels[i]} ready={ready} onStop={onReelStop} /> : reels[i] === null ? <span>?</span> : <Icon sheet={ALLIES[reels[i] as number].sheet} ready={ready} />}</div>)}</div>
             <button type="button" className="sb-btn sb-summon" disabled={spinning || phase === 'battle' || coins < SUMMON_COST || !ready || !saved.ready} onClick={summon}>소환<small>● {SUMMON_COST}</small></button>
         </div>
-        {selUnit && <div className="sb-info">
-            <div><b>{selUnit.def.name}</b> <span style={{ color: RARITY_COLOR[selUnit.rarity] }}>{RARITY_NAME[selUnit.rarity]}</span> · {selUnit.def.role} · Lv{selUnit.lv}<br />체력 {Math.round(selUnit.def.hp * unitMult(selUnit))} 공격 {Math.round(selUnit.def.atk * unitMult(selUnit))}{selUnit.def.heal ? ` 치유 ${Math.round(selUnit.def.heal * unitMult(selUnit))}` : ''} · 칸을 눌러 배치</div>
-            <div className="sb-acts"><button type="button" className="sb-btn sm" onClick={enhance} disabled={selUnit.enh >= MAX_ENH}>강화 ◆{selUnit.enh >= MAX_ENH ? '최대' : enhCost(selUnit)}</button><button type="button" className="sb-btn sm ghost" onClick={decompose}>분해 +◆{shardValue(selUnit)}</button></div>
-        </div>}
         <div className="sb-bar">
-            {phase === 'prep' && <button type="button" className="sb-btn go" disabled={!ready || !reg.ready} onClick={startFight}>전투 시작</button>}
+            {phase === 'prep' && <><button type="button" className="sb-btn go" disabled={!ready || !reg.ready} onClick={startFight}>전투 시작</button><button type="button" className="sb-btn ghost" disabled={!ready} onClick={autoPlace}>자동 배치</button></>}
             {phase === 'battle' && <button type="button" className="sb-btn go" disabled>전투 중</button>}
             {phase === 'win' && <><button type="button" className="sb-btn go" onClick={next}>다음 전투</button><button type="button" className="sb-btn ghost" onClick={() => toPrep()}>정비</button></>}
             {phase === 'lose' && <button type="button" className="sb-btn go" onClick={() => toPrep()}>다시 준비</button>}
         </div>
+        {selUnit && <div className="sb-info">
+            <div><b>{selUnit.def.name}</b> <span style={{ color: RARITY_COLOR[selUnit.rarity] }}>{RARITY_NAME[selUnit.rarity]}</span> · {selUnit.def.role} · Lv{selUnit.lv}<br />체력 {Math.round(selUnit.def.hp * unitMult(selUnit))} 공격 {Math.round(selUnit.def.atk * unitMult(selUnit))}{selUnit.def.heal ? ` 치유 ${Math.round(selUnit.def.heal * unitMult(selUnit))}` : ''} · 칸을 눌러 배치</div>
+            <div className="sb-acts"><button type="button" className="sb-btn sm" onClick={enhance} disabled={selUnit.enh >= MAX_ENH}>강화 ◆{selUnit.enh >= MAX_ENH ? '최대' : enhCost(selUnit)}</button><button type="button" className="sb-btn sm ghost" onClick={decompose}>분해 +◆{shardValue(selUnit)}</button></div>
+        </div>}
         <div className={`sb-save${saved.ready ? '' : ' warn'}`} role="status">{saved.ready ? (/not saved/i.test(saved.message || '') ? '저장 불가: 창을 닫으면 진행이 사라집니다. 지역 메뉴의 저장 코드를 보관하세요.' : '이 기기에 자동 저장됩니다.') : '저장 상태 확인 중'}</div>
         </aside>
         </div>

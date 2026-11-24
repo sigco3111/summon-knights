@@ -57,7 +57,7 @@ body { background: #120c1a; }
 .sb-syn span.on { color: #efeaf6; border-color: #6d5f86; background: #2e2140; }
 .sb-syn em { font-style: normal; color: #e8b64c; margin-left: 4px; }
 .sb-syn .cnt { margin-left: auto; color: #efeaf6; }
-.sb-msg { min-height: 18px; font-size: 12px; color: #b9aec9; }
+.sb-msg { min-height: 34px; font-size: 12px; line-height: 17px; color: #b9aec9; display: flex; align-items: center; }
 .sb-save { font-size: 9px; color: #8d83a1; line-height: 1.4; }
 .sb-save.warn { color: #e8b64c; }
 
@@ -120,7 +120,9 @@ body { background: #120c1a; }
 .sb-info b { color: #e8b64c; }
 .sb-acts { display: flex; flex-direction: column; gap: 6px; }
 
-.sb-bar { display: flex; gap: 8px; }
+.sb-bar { display: flex; flex-wrap: wrap; gap: 8px; }
+.sb-bar .sb-btn.go { flex: 0 0 100%; width: 100%; }
+.sb-bar .sb-btn.ghost { flex: 1; }
 
 /* ── 지역 맵 다이얼로그 (양피지) ───────────── */
 .sb-map {
@@ -162,7 +164,7 @@ body { background: #120c1a; }
   .sb-stage { min-height: 32px; padding: 4px 10px; font-size: 13px; }
   .sb-field { margin: 8px 0 8px 8px; }
   .sb-side { margin: 8px 8px 8px 10px; padding: 6px; gap: 6px; }
-  .sb-msg { min-height: 14px; font-size: 11px; }
+  .sb-msg { min-height: 30px; font-size: 11px; line-height: 15px; }
   .sb-reel { height: 48px; }
   .sb-icon { width: 40px; height: 36px; }
   .sb-btn { min-height: 38px; }
@@ -182,6 +184,6 @@ body { background: #120c1a; }
   .sb-reel { height: 46px; }
   .sb-icon { width: 38px; height: 34px; }
   .sb-bar .sb-btn.go { min-height: 44px; }
-  .sb-msg { min-height: 14px; }
+  .sb-msg { min-height: 30px; }
   .sb-dots button { min-height: 34px; font-size: 11px; padding: 0 2px; }
 }
