@@ -67,8 +67,49 @@ export function App() {
     const unitsRef = useRef<Unit[]>([]); unitsRef.current = units;
     const phaseRef = useRef(phase); phaseRef.current = phase;
     const regionRef = useRef(region); regionRef.current = region;
-    const urls = useRef(allUrls()).current; const loaded = useRef(0);
-    const onImg = (u: string, el: HTMLImageElement) => { registerImg(u, el); loaded.current++; if (loaded.current >= urls.length + 1) setReady(true); };
+    const urls = useRef(allUrls()).current;
+    const [loadProg, setLoadProg] = useState(0);
+    const [loadError, setLoadError] = useState(false);
+    // 에셋 로더: 동시 요청을 제한하고 실패 시 지수 백오프로 재시도한다.
+    // (이전: 숨겨진 <img> 150개 동시 요청 + onError 미처리 → 하나라도 실패하면 영구 '불러오는 중')
+    useEffect(() => {
+        let cancelled = false;
+        const jobs: { key: string; src: string; bg?: string }[] = [
+            ...urls.map((u) => ({ key: u, src: u })),
+            ...Object.entries(BG_SRC).map(([k, src]) => ({ key: `bg:${k}`, src, bg: k })),
+        ];
+        const total = jobs.length;
+        let idx = 0; let done = 0; let failed = 0;
+        const loadOne = (job: { key: string; src: string; bg?: string }) => new Promise<void>((resolve) => {
+            let attempt = 0;
+            const tryLoad = () => {
+                if (cancelled) return resolve();
+                // 호스트가 <img> 직접 요청을 간헐 거부하는 문제가 있어 fetch→blob URL로 로드한다.
+                fetch(job.src).then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.blob(); }).then((blob) => {
+                    if (cancelled) return resolve();
+                    const ou = URL.createObjectURL(blob);
+                    const el = new Image();
+                    el.onload = () => {
+                        if (job.bg) bgsRef.current[job.bg] = el; else registerImg(job.src, el);
+                        done += 1; if (!cancelled) setLoadProg(done); resolve();
+                    };
+                    el.onerror = () => { URL.revokeObjectURL(ou); retry(); };
+                    el.src = ou;
+                }).catch(() => retry());
+            };
+            const retry = () => {
+                attempt += 1;
+                if (attempt <= 6) { setTimeout(tryLoad, 400 * attempt + Math.random() * 200); }
+                else { failed += 1; done += 1; if (!cancelled) { setLoadProg(done); setLoadError(true); } resolve(); }
+            };
+            tryLoad();
+        });
+        const POOL = 8;
+        const workers = Array.from({ length: POOL }, async () => { while (idx < jobs.length) { await loadOne(jobs[idx++]); } });
+        Promise.all(workers).then(() => { if (!cancelled && failed === 0) setReady(true); });
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const [save, setSave, saved] = useLocalState<{ coins: number; shards: number; units: number[][]; region: number; stage: number; cleared: Record<string, boolean> } | null>('slotbound.save.v1', null);
     const restored = useRef(false);
@@ -189,7 +230,6 @@ export function App() {
 
     const syn = synergy(board);
     return <div className="sb-app">
-        <div className="sb-hidden" aria-hidden="true">{urls.map((u) => <img key={u} src={u} alt="" onLoad={(e) => onImg(u, e.currentTarget)} />)}{Object.entries(BG_SRC).map(([k, src]) => <img key={k} src={src} alt="" onLoad={(e) => { bgsRef.current[k] = e.currentTarget; onImg(`bg:${k}`, e.currentTarget); }} />)}</div>
         <div className="sb-top">
             <button type="button" className="sb-stage" onClick={() => setMap(true)} disabled={phase === 'battle'}><b>{reg.id} {reg.name}</b><span>{stage.label} {stage.kind}</span></button>
             <div className="sb-res"><span className="sb-coin" title="소환 코인">●</span><b>{coins}</b><span className="sb-shard" title="강화 조각">◆</span><b>{shards}</b></div>
@@ -199,7 +239,7 @@ export function App() {
             <canvas ref={canvasRef} width={W} height={H} className="sb-canvas" onPointerDown={onCanvas} aria-label="전장" />
             {phase === 'battle' && <div className="sb-prog"><i style={{ width: `${kills[1] ? (kills[0] / kills[1]) * 100 : 0}%` }} /><span>{kills[0]}/{kills[1]}</span></div>}
             {(phase === 'win' || phase === 'lose') && <div className={`sb-result ${phase}`}>{phase === 'win' ? '승리' : '패배'}<small>{msg}</small></div>}
-            {!ready && <div className="sb-result">불러오는 중</div>}
+            {!ready && <div className="sb-result">{loadError ? '일부 에셋을 불러오지 못했습니다. 새로고침 해주세요.' : `불러오는 중 ${loadProg}/${urls.length + 8}`}</div>}
         </div>
         <div className="sb-syn">
             {ROLES.map((r) => <span key={r} className={syn[r] ? 'on' : ''}>{r} {syn[r] || 0}{synergyBonus(syn[r] || 0) ? <em>+{Math.round(synergyBonus(syn[r]) * 100)}%</em> : null}</span>)}
