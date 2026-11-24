@@ -99,6 +99,18 @@ export const REGIONS: RegionDef[] = [
     { id: 7, name: '화염 지대', pool: ['goblin', 'bat', 'slime'], elite: 'slime', boss: 'infernoWorm', bg: 'kiln', ready: true, need: '' },
     { id: 8, name: '최종 지역', pool: ['skeleton', 'bat', 'rat'], elite: 'mimic', boss: 'lastWizard', bg: 'sodium', ready: true, need: '' },
 ];
+export interface Gimmick { name: string; desc: string; role?: string; atk?: number; hp?: number; cd?: number; heal?: number; eAtk?: number; eHp?: number }
+/** 지역 기믹: 우리 설계(임시). 원작 지역 기믹은 확인하지 못했으므로 원작 서술 아님. */
+export const GIMMICKS: Record<number, Gimmick | null> = {
+    1: null,
+    2: { name: '어둠', desc: '원거리 공격 -10%', role: '원거리', atk: 0.9 },
+    3: { name: '진흙', desc: '아군 공격 간격 +8%', cd: 1.08 },
+    4: { name: '한기', desc: '치유량 -25%', heal: 0.75 },
+    5: { name: '심연의 압박', desc: '적 체력 +8%', eHp: 1.08 },
+    6: { name: '미로', desc: '딜러 공격 -8%', role: '딜러', atk: 0.92 },
+    7: { name: '열기', desc: '아군 체력 -6%', hp: 0.94 },
+    8: { name: '최종 지역', desc: '적 공격 +8%', eAtk: 1.08 },
+};
 export const STAGES_PER_REGION = 7; // 일반 5 + 정예 1 + 보스 1
 
 export interface StageDef { region: number; index: number; kind: '일반' | '정예' | '보스'; label: string; spawns: { id: string; at: number }[]; mult: number; reward: number; }
@@ -211,7 +223,8 @@ export function coreMods(cores: string[], list: Unit[], u: Unit) {
 export function startBattle(board: Unit[], stage: StageDef, camp = false, cores: string[] = [], ups: string[] = []): Battle {
     const list = board.slice(0, MAX_UNITS);
     const fighters: Fighter[] = list.map((u, i) => {
-        const m = unitMult(u); const md0 = unitMods(u); const cm = coreMods(cores, list, u); const um = upMods(ups); const md = { ...md0, hp: md0.hp * cm.hp * um.hp, atk: md0.atk * cm.atk * um.atk, heal: md0.heal * cm.heal * um.heal, cd: md0.cd * um.cd };
+        const m = unitMult(u); const md0 = unitMods(u); const cm = coreMods(cores, list, u); const gm = GIMMICKS[stage.region]; const gr = gm && (!gm.role || gm.role === u.def.role); const um = upMods(ups); const md = { ...md0, hp: md0.hp * cm.hp * um.hp, atk: md0.atk * cm.atk * um.atk, heal: md0.heal * cm.heal * um.heal * (gr && gm!.heal ? gm!.heal : 1), cd: md0.cd * um.cd * (gr && gm!.cd ? gm!.cd : 1) };
+        md.atk *= gr && gm!.atk ? gm!.atk : 1; md.hp *= gr && gm!.hp ? gm!.hp : 1;
         const x = 24 + Math.floor(i / 3) * 32 + (i % 3 === 1 ? 14 : 0); const y = CELL_Y[i % 3];
         return {
             team: 'a', key: `a${u.uid}`, sheet: u.def.sheet, x, y, baseX: x, hp: Math.round(u.def.hp * m * md.hp), maxHp: Math.round(u.def.hp * m * md.hp), atk: u.def.atk * m * md.atk, cd: u.def.cd * md.cd, range: u.def.range,
@@ -226,9 +239,9 @@ function spawnEnemy(b: Battle, id: string) {
     const d = ENEMIES[id];
     const lane = Math.floor(Math.random() * 3);
     const y = d.flying ? CELL_Y[lane] - 26 : CELL_Y[lane];
-    const m = b.stage.mult;
+    const m = b.stage.mult; const gm = GIMMICKS[b.stage.region]; const eh = gm?.eHp || 1, ea = gm?.eAtk || 1;
     b.fighters.push({
-        team: 'e', key: `e${b.fighters.length}_${Math.random()}`, sheet: d.sheet, x: W + 30, y, baseX: W + 30, hp: Math.round(d.hp * m), maxHp: Math.round(d.hp * m), atk: d.atk * (1 + (m - 1) * 0.6), cd: d.cd,
+        team: 'e', key: `e${b.fighters.length}_${Math.random()}`, sheet: d.sheet, x: W + 30, y, baseX: W + 30, hp: Math.round(d.hp * m * eh), maxHp: Math.round(d.hp * m * eh), atk: d.atk * (1 + (m - 1) * 0.6) * ea, cd: d.cd,
         range: d.range, speed: d.speed, px: d.px, face: -1, state: 'move', t: 0, fired: false, cdLeft: 400, target: null, flying: d.flying, boss: d.boss, hue: d.hue, dead: false, fade: 1, hitT: 0, name: d.name,
     });
 }
