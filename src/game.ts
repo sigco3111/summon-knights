@@ -89,7 +89,7 @@ export function buildStage(region: RegionDef, index: number): StageDef {
     }
     if (kind === '정예') { spawns.push({ id: region.elite, at: t + 800 }); spawns.push({ id: region.elite, at: t + 1600 }); }
     if (kind === '보스') spawns.push({ id: region.boss, at: t + 1500 });
-    return { region: region.id, index, kind, label: `${region.id}-${index + 1}`, spawns, mult: kind === '정예' ? mult * 1.05 : mult, reward: 5 + index + (kind === '보스' ? 10 : 0) };
+    return { region: region.id, index, kind, label: `${region.id}-${index + 1}`, spawns, mult: kind === '정예' ? mult * 1.08 : mult, reward: 5 + index + (kind === '보스' ? 10 : 0) };
 }
 
 // ---------- runtime ----------
