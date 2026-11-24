@@ -5,6 +5,8 @@ const PROFILES = {
   early6: [[0,0,1,0,2],[5,0,1,0,5],[8,0,1,0,8],[3,0,1,0,1],[13,0,1,0,4],[4,0,1,0,0]],
   mid:    [[0,1,2,2,2],[5,1,2,2,5],[8,1,2,2,8],[3,1,2,2,1],[13,1,2,2,4],[4,1,2,2,0]],
   maxed:  [[0,2,3,5,2],[5,2,3,5,5],[8,2,3,5,8],[3,2,3,5,1],[13,2,3,5,4],[4,2,3,5,0]],
+  mid_d:  [[0,1,2,2,2],[8,1,2,2,8],[12,1,2,2,5],[11,1,2,2,4],[3,1,2,2,1],[4,1,2,2,0]],
+  maxed_d:[[0,2,3,5,2],[8,2,3,5,8],[12,2,3,5,5],[11,2,3,5,4],[3,2,3,5,1],[4,2,3,5,0]],
 };
 function mkUnits(spec) {
   return spec.map(([ai, r, lv, enh, cell], i) => ({ uid: i+1, def: g.ALLIES[ai], rarity: r, lv, enh, cell }));
@@ -22,7 +24,7 @@ for (let rid = parseInt(r0s||'1',10); rid <= parseInt(r1s||'8',10); rid++) {
   for (let si = 0; si < 7; si++) {
     const stage = g.buildStage(g.REGIONS[rid-1], si);
     const out = [];
-    for (const p of ['fresh3','early6','mid','maxed']) {
+    for (const p of (process.env.P||'fresh3,early6,mid,maxed').split(',')) {
       let w = 0;
       for (let i = 0; i < N; i++) if (runOnce(mkUnits(PROFILES[p]), stage) === 'win') w++;
       out.push(`${p} ${Math.round(w*100/N)}%`);
