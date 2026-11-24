@@ -10,22 +10,23 @@ const pw=u=>g.unitMult(u)*(u.def.hp*0.05+u.def.atk);
 function place(units){const s=units.slice().sort((a,b)=>pw(b)-pw(a));s.forEach(u=>u.cell=-1);
  const field=s.slice(0,6);const col={'전열':2,'딜러':1,'원거리':0,'지원':0};const used=new Set();
  for(const u of field){const c0=col[u.def.role];for(const c of [c0,1,0,2]){let ok=false;for(const r of [1,0,2]){const cell=r*3+c;if(!used.has(cell)){used.add(cell);u.cell=cell;ok=true;break;}}if(ok)break;}}}
-function run(){let coins=12,shards=0,units=[];const log={summons:0,stuck:null,clears:0,decomp:0,enh:0};
+function run(){let coins=12,shards=0,units=[];const log={created:0,merges:0,shGain:0,shSpent:0,left:0,held:0,summons:0,stuck:null,clears:0,decomp:0,enh:0};
  for(let rid=0;rid<8;rid++)for(let si=0;si<7;si++){const stage=g.buildStage(g.REGIONS[rid],si);let tries=0;
   while(true){
-   while(coins>=SC&&log.summons<400){coins-=SC;log.summons++;const made=[0,1,2].map(()=>({uid:uid++,def:g.rollUnit(),rarity:g.rollRarity(),cell:-1,lv:1,enh:0}));units=merge([...units,...made]);}
+   while(coins>=SC&&log.summons<400){coins-=SC;log.summons++;const made=[0,1,2].map(()=>({uid:uid++,def:g.rollUnit(),rarity:g.rollRarity(),cell:-1,lv:1,enh:0}));log.created+=3;const pre=units.length+3;units=merge([...units,...made]);log.merges+=(pre-units.length)/2;}
    place(units);
    // 벤치 정리: 출전 외 유닛이 8개 넘으면 약한 순 분해
    const bench=units.filter(u=>u.cell<0).sort((a,b)=>pw(a)-pw(b));
-   while(bench.length>8){const u=bench.shift();shards+=g.shardValue(u);log.decomp++;units=units.filter(x=>x.uid!==u.uid);}
-   for(let k=0;k<50;k++){const f=units.filter(u=>u.cell>=0&&u.enh<5).sort((a,b)=>a.enh-b.enh)[0];if(!f||shards<g.enhCost(f))break;shards-=g.enhCost(f);f.enh++;log.enh++;}
+   while(bench.length>(+process.env.BENCH||8)){const u=bench.shift();shards+=g.shardValue(u);log.shGain+=g.shardValue(u);log.decomp++;units=units.filter(x=>x.uid!==u.uid);}
+   for(let k=0;k<50;k++){const f=units.filter(u=>u.cell>=0&&u.enh<5).sort((a,b)=>a.enh-b.enh)[0];if(!f||shards<g.enhCost(f))break;shards-=g.enhCost(f);log.shSpent+=g.enhCost(f);f.enh++;log.enh++;}
    const b=g.startBattle(units.filter(u=>u.cell>=0),stage);let n=0;while(!b.result&&n++<20000)g.step(b,50);
    if(b.result==='win'){coins+=stage.reward;log.clears++;break;}
-   coins+=1;tries++;if(tries>=12){log.stuck=stage.label;return log;}
+   coins+=1;tries++;if(tries>=12){log.stuck=stage.label;log.left=shards;log.held=units.length;return log;}
   }}
- return log;}
+ log.left=shards;log.held=units.length;return log;}
 const N=parseInt(process.argv[2]||'20',10);const R=[];for(let i=0;i<N;i++)R.push(run());
 const st={};R.forEach(r=>{const k=r.stuck||'완주';st[k]=(st[k]||0)+1;});
 console.log('막힘 지점 분포(N='+N+')',JSON.stringify(st));
 const avg=k=>(R.reduce((a,r)=>a+r[k],0)/N).toFixed(1);
+console.log('단위: 생성유닛',avg('created'),'합성횟수',avg('merges'),'분해유닛',avg('decomp'),'보유잔여',avg('held'),'조각획득',avg('shGain'),'조각사용',avg('shSpent'),'조각잔여',avg('left'));
 console.log('평균 클리어',avg('clears'),'/56 소환',avg('summons'),'분해',avg('decomp'),'강화',avg('enh'));
