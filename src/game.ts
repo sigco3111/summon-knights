@@ -53,25 +53,24 @@ export const ENEMIES: Record<string, EnemyDef> = {
     slime: { id: 'slime', sheet: 'slime', name: 'Slime', hp: 130, atk: 10, cd: 1600, speed: 16, range: 30, px: 34, face: 1 },
     bat: { id: 'bat', sheet: 'bat', name: 'Bat', hp: 38, atk: 7, cd: 800, speed: 44, range: 30, px: 30, flying: true, face: 1 },
     mimic: { id: 'mimic', sheet: 'mimic', name: 'Mimic', hp: 420, atk: 22, cd: 1200, speed: 10, range: 40, px: 44, face: 1 },
-    // TEMP interim bosses (hue variants) until user picks final bosses: not final content
-    bogWorm: { id: 'bogWorm', sheet: 'fwm', name: 'Bog Worm', hp: 1400, atk: 40, cd: 1500, speed: 14, range: 46, px: 64, boss: true, face: 1, hue: 120, temp: true },
-    frostWorm: { id: 'frostWorm', sheet: 'fwm', name: 'Frost Worm', hp: 1700, atk: 46, cd: 1500, speed: 14, range: 46, px: 64, boss: true, face: 1, hue: 200, temp: true },
-    abyssWizard: { id: 'abyssWizard', sheet: 'ew3', name: 'Abyss Wizard', hp: 2100, atk: 54, cd: 1450, speed: 18, range: 60, px: 72, boss: true, face: 1, hue: 260, temp: true },
-    doomWorm: { id: 'doomWorm', sheet: 'fwm', name: 'Doom Worm', hp: 2800, atk: 62, cd: 1450, speed: 15, range: 46, px: 66, boss: true, face: 1, hue: 300, temp: true },
-    infernoWorm: { id: 'infernoWorm', sheet: 'fwm', name: 'Inferno Worm', hp: 3700, atk: 72, cd: 1400, speed: 15, range: 46, px: 66, boss: true, face: 1, hue: 340, temp: true },
-    lastWizard: { id: 'lastWizard', sheet: 'ew3', name: 'Last Wizard', hp: 4900, atk: 85, cd: 1400, speed: 20, range: 60, px: 76, boss: true, face: 1, hue: 180, temp: true },
+    bogWorm: { id: 'bogWorm', sheet: 'dsl', name: 'Demon Slime', hp: 1400, atk: 40, cd: 1500, speed: 14, range: 46, px: 92, boss: true, face: 1 },
+    frostWorm: { id: 'frostWorm', sheet: 'fgd', name: 'Frost Guardian', hp: 1700, atk: 46, cd: 1500, speed: 14, range: 46, px: 84, boss: true, face: 1 },
+    abyssWizard: { id: 'abyssWizard', sheet: 'cth', name: 'Cthulhu', hp: 2100, atk: 54, cd: 1450, speed: 18, range: 60, px: 80, boss: true, face: 1 },
+    doomWorm: { id: 'doomWorm', sheet: 'cml', name: 'Crystal Mauler', hp: 2800, atk: 62, cd: 1450, speed: 15, range: 46, px: 84, boss: true, face: 1 },
+    infernoWorm: { id: 'infernoWorm', sheet: 'fkn', name: 'Fire Knight', hp: 3700, atk: 72, cd: 1400, speed: 15, range: 46, px: 84, boss: true, face: 1 },
+    lastWizard: { id: 'lastWizard', sheet: 'whs', name: 'Wind Hashashin', hp: 4900, atk: 85, cd: 1400, speed: 20, range: 60, px: 88, boss: true, face: 1 },
 };
 
 export interface RegionDef { id: number; name: string; pool: string[]; elite: string; boss: string; bg: string; ready: boolean; need: string; temp?: boolean; }
 export const REGIONS: RegionDef[] = [
     { id: 1, name: '숲', pool: ['goblin', 'mushroom', 'eye'], elite: 'mushroom', boss: 'worm', bg: 'forest', ready: true, need: '' },
     { id: 2, name: '동굴', pool: ['skeleton', 'goblin', 'eye'], elite: 'skeleton', boss: 'wizardBoss', bg: 'grotto', ready: true, need: '' },
-    { id: 3, name: '늪과 폐허', pool: ['rat', 'slime', 'mushroom'], elite: 'slime', boss: 'bogWorm', bg: 'canopy', ready: true, need: '', temp: true },
-    { id: 4, name: '설원', pool: ['bat', 'rat', 'skeleton'], elite: 'skeleton', boss: 'frostWorm', bg: 'tundra', ready: true, need: '', temp: true },
-    { id: 5, name: '심연', pool: ['eye', 'bat', 'skeleton'], elite: 'eye', boss: 'abyssWizard', bg: 'hollow', ready: true, need: '', temp: true },
-    { id: 6, name: '미궁', pool: ['skeleton', 'slime', 'goblin'], elite: 'mimic', boss: 'doomWorm', bg: 'mesa', ready: true, need: '', temp: true },
-    { id: 7, name: '화염 지대', pool: ['goblin', 'bat', 'slime'], elite: 'slime', boss: 'infernoWorm', bg: 'kiln', ready: true, need: '', temp: true },
-    { id: 8, name: '최종 지역', pool: ['skeleton', 'bat', 'rat'], elite: 'mimic', boss: 'lastWizard', bg: 'sodium', ready: true, need: '', temp: true },
+    { id: 3, name: '늪과 폐허', pool: ['rat', 'slime', 'mushroom'], elite: 'slime', boss: 'bogWorm', bg: 'canopy', ready: true, need: '' },
+    { id: 4, name: '설원', pool: ['bat', 'rat', 'skeleton'], elite: 'skeleton', boss: 'frostWorm', bg: 'tundra', ready: true, need: '' },
+    { id: 5, name: '심연', pool: ['eye', 'bat', 'skeleton'], elite: 'eye', boss: 'abyssWizard', bg: 'hollow', ready: true, need: '' },
+    { id: 6, name: '미궁', pool: ['skeleton', 'slime', 'goblin'], elite: 'mimic', boss: 'doomWorm', bg: 'mesa', ready: true, need: '' },
+    { id: 7, name: '화염 지대', pool: ['goblin', 'bat', 'slime'], elite: 'slime', boss: 'infernoWorm', bg: 'kiln', ready: true, need: '' },
+    { id: 8, name: '최종 지역', pool: ['skeleton', 'bat', 'rat'], elite: 'mimic', boss: 'lastWizard', bg: 'sodium', ready: true, need: '' },
 ];
 export const STAGES_PER_REGION = 7; // 일반 5 + 정예 1 + 보스 1
 
@@ -109,7 +108,7 @@ export interface Proj { x: number; y: number; target: Fighter; dmg: number; kind
 export interface Float { x: number; y: number; text: string; color: string; t: number; }
 export interface Battle {
     fighters: Fighter[]; projs: Proj[]; floats: Float[]; time: number; spawned: number; stage: StageDef;
-    result: null | 'win' | 'lose'; kills: number; total: number;
+    result: null | 'win' | 'lose'; kills: number; total: number; rewarded?: boolean;
     events?: { k: 'hit' | 'death' | 'boss' | 'heal'; x: number; y: number; flip: boolean }[];
 }
 

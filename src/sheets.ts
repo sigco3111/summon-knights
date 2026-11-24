@@ -114,6 +114,37 @@ import mimic_hit from './spr/mimic_hit.png';
 import mimic_die from './spr/mimic_die.png';
 import mimic_move from './spr/mimic_move.png';
 
+import dsl_idle from './spr/dsl_idle.png';
+import dsl_move from './spr/dsl_move.png';
+import dsl_atk from './spr/dsl_atk.png';
+import dsl_hit from './spr/dsl_hit.png';
+import dsl_die from './spr/dsl_die.png';
+import fgd_idle from './spr/fgd_idle.png';
+import fgd_move from './spr/fgd_move.png';
+import fgd_atk from './spr/fgd_atk.png';
+import fgd_hit from './spr/fgd_hit.png';
+import fgd_die from './spr/fgd_die.png';
+import cth_idle from './spr/cth_idle.png';
+import cth_move from './spr/cth_move.png';
+import cth_atk from './spr/cth_atk.png';
+import cth_hit from './spr/cth_hit.png';
+import cth_die from './spr/cth_die.png';
+import cml_idle from './spr/cml_idle.png';
+import cml_move from './spr/cml_move.png';
+import cml_atk from './spr/cml_atk.png';
+import cml_hit from './spr/cml_hit.png';
+import cml_die from './spr/cml_die.png';
+import fkn_idle from './spr/fkn_idle.png';
+import fkn_move from './spr/fkn_move.png';
+import fkn_atk from './spr/fkn_atk.png';
+import fkn_hit from './spr/fkn_hit.png';
+import fkn_die from './spr/fkn_die.png';
+import whs_idle from './spr/whs_idle.png';
+import whs_move from './spr/whs_move.png';
+import whs_atk from './spr/whs_atk.png';
+import whs_hit from './spr/whs_hit.png';
+import whs_die from './spr/whs_die.png';
+
 export const SHEETS: Record<string, Record<string, string>> = {
   hk: { idle: hk_idle, atk: hk_atk, hit: hk_hit, die: hk_die },
   fw: { idle: fw_idle, atk: fw_atk, hit: fw_hit, die: fw_die },
@@ -141,6 +172,12 @@ export const SHEETS: Record<string, Record<string, string>> = {
   slime: { idle: slime_idle, atk: slime_atk, hit: slime_hit, die: slime_die, move: slime_move },
   bat: { idle: bat_idle, atk: bat_atk, hit: bat_hit, die: bat_die, move: bat_move },
   mimic: { idle: mimic_idle, atk: mimic_atk, hit: mimic_hit, die: mimic_die, move: mimic_move },
+  dsl: { idle: dsl_idle, move: dsl_move, atk: dsl_atk, hit: dsl_hit, die: dsl_die },
+  fgd: { idle: fgd_idle, move: fgd_move, atk: fgd_atk, hit: fgd_hit, die: fgd_die },
+  cth: { idle: cth_idle, move: cth_move, atk: cth_atk, hit: cth_hit, die: cth_die },
+  cml: { idle: cml_idle, move: cml_move, atk: cml_atk, hit: cml_hit, die: cml_die },
+  fkn: { idle: fkn_idle, move: fkn_move, atk: fkn_atk, hit: fkn_hit, die: fkn_die },
+  whs: { idle: whs_idle, move: whs_move, atk: whs_atk, hit: whs_hit, die: whs_die },
 };
 
 export const META: Record<string, { fw: number; fh: number; cx: number; fy: number; h: number }> = {
@@ -170,4 +207,10 @@ export const META: Record<string, { fw: number; fh: number; cx: number; fy: numb
   slime: { fw: 99, fh: 35, cx: 49, fy: 35, h: 20 },
   bat: { fw: 67, fh: 55, cx: 33, fy: 55, h: 55 },
   mimic: { fw: 69, fh: 44, cx: 34, fy: 44, h: 11 },
+  dsl: { fw: 210, fh: 124, cx: 84, fy: 124, h: 107 },
+  fgd: { fw: 184, fh: 96, cx: 92, fy: 96, h: 92 },
+  cth: { fw: 134, fh: 67, cx: 94, fy: 67, h: 64 },
+  cml: { fw: 83, fh: 50, cx: 50, fy: 50, h: 39 },
+  fkn: { fw: 117, fh: 83, cx: 82, fy: 83, h: 44 },
+  whs: { fw: 173, fh: 53, cx: 92, fy: 53, h: 37 },
 };
