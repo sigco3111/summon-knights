@@ -21,11 +21,14 @@ export const ENGRAVINGS = [
     { id: 'mend', name: '수호', desc: '체력 +8%, 치유 +15%/단계', from: '지원' },
 ];
 export const PROMOS: Record<string, [string, string]> = { '전열': ['수호기사', '돌격기사'], '딜러': ['권왕', '연격수'], '원거리': ['저격수', '속사수'], '지원': ['대사제', '비전사'] };
+export const PROMOS2: Record<string, [string, string]> = { '전열': ['불굴의 수호자', '파성 기사'], '딜러': ['투신', '검무자'], '원거리': ['명사수', '난사수'], '지원': ['성자', '대마도사'] }; // 우리 설계(임시) 2차 승급 이름
+export const PROMO2_DESC = ['체력 +25%', '공격 +25%'];
 export const PROMO_DESC = ['체력 +45%, 공격 -5%', '공격 +40%, 체력 -5%'];
 export function engIndexOf(role: string) { return ENGRAVINGS.findIndex((e) => e.from === role); }
-export function unitMods(u: { eng?: number[]; promo?: number }) {
+export function unitMods(u: { eng?: number[]; promo?: number; promo2?: number }) {
     const e = u.eng || [0, 0, 0, 0]; let hp = 1 + 0.12 * e[0] + 0.08 * e[3], atk = 1 + 0.1 * e[1], cd = Math.max(0.6, 1 - 0.08 * e[2]), heal = 1 + 0.15 * e[3];
     if (u.promo === 1) { hp *= 1.45; atk *= 0.95; } else if (u.promo === 2) { atk *= 1.4; hp *= 0.95; }
+    if (u.promo2 === 1) hp *= 1.25; else if (u.promo2 === 2) atk *= 1.25;
     return { hp, atk, cd, heal };
 }
 export function unitHp(u: Unit) { return Math.round(u.def.hp * unitMult(u) * unitMods(u).hp); }
@@ -118,7 +121,7 @@ export function buildStage(region: RegionDef, index: number): StageDef {
 
 // ---------- runtime ----------
 export interface Unit {
-    uid: number; def: UnitDef; rarity: Rarity; cell: number; lv: number; enh: number; promo?: number; eng?: number[]; abs?: number; off?: boolean;
+    uid: number; def: UnitDef; rarity: Rarity; cell: number; lv: number; enh: number; promo?: number; eng?: number[]; abs?: number; off?: boolean; promo2?: number;
 }
 
 export interface Fighter {

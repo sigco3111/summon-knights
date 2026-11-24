@@ -14,7 +14,7 @@ import fontRegular from './fonts/Galmuri11.woff2';
 import fontBold from './fonts/Galmuri11-Bold.woff2';
 const BG_SRC: Record<string, string> = { grotto, forest: bgforest, canopy: bgcanopy, tundra: bgtundra, hollow: bghollow, mesa: bgmesa, kiln: bgkiln, sodium: bgsodium };
 import {
-    ALLIES, MAX_UNITS, MAX_ROSTER, REGIONS, RARITY_NAME, RARITY_COLOR, STAGES_PER_REGION, W, H, MAX_LV, MAX_ENH, STAR_AT, IMP_SLOTS, starOf, absFromStar, CORES, MAX_CORES, rollCores, buildStage, cellPos, drawBattle, drawSprite, iconDraw, allUrls, registerImg,
+    ALLIES, MAX_UNITS, MAX_ROSTER, PROMOS2, PROMO2_DESC, REGIONS, RARITY_NAME, RARITY_COLOR, STAGES_PER_REGION, W, H, MAX_LV, MAX_ENH, STAR_AT, IMP_SLOTS, starOf, absFromStar, CORES, MAX_CORES, rollCores, buildStage, cellPos, drawBattle, drawSprite, iconDraw, allUrls, registerImg,
     rollRarity, rollUnit, startBattle, step, synergy, synergyBonus, unitMult, enhCost, shardValue, type Battle, type Unit,
   assignCells, optimizeFormation, unitPower, ENGRAVINGS, MAX_ENG, PROMOS, PROMO_DESC, engIndexOf, unitHp, unitAtk, unitHeal, CELL_X, evalGrid, rollCell, rollSymbolUnit, SYMBOLS, LINE_SUMMON, SPECIAL_SHARDS, type GridCell,
 } from './game';
@@ -148,7 +148,7 @@ export function App() {
     useEffect(() => {
         if (!saved.ready || restored.current) return; restored.current = true;
         if (save) {
-            const us: Unit[] = save.units.map((q) => ({ uid: uidSeq++, def: ALLIES[q[0]], rarity: q[1] as 0 | 1 | 2, lv: q[2], enh: q[3], cell: q[4], promo: q[5] || 0, eng: [q[6] || 0, q[7] || 0, q[8] || 0, q[9] || 0], abs: q[10] || absFromStar(q[1], q[2]), off: q[11] === 1 })).filter((u) => u.def);
+            const us: Unit[] = save.units.map((q) => ({ uid: uidSeq++, def: ALLIES[q[0]], rarity: q[1] as 0 | 1 | 2, lv: q[2], enh: q[3], cell: q[4], promo: q[5] || 0, eng: [q[6] || 0, q[7] || 0, q[8] || 0, q[9] || 0], abs: q[10] || absFromStar(q[1], q[2]), off: q[11] === 1, promo2: q[12] || 0 })).filter((u) => u.def);
             setUnits(((l: Unit[]) => { let n = 0; return l.map((u) => (u.off ? u : ++n <= MAX_UNITS ? u : { ...u, off: true })); })(us)); setCoins(save.coins); setShards(save.shards); setRegion(Math.min(save.region, REGIONS.length - 1)); setStageIdx(save.stage); setCleared(save.cleared || {});
             if (save.pend && save.pend.g.length === 9) { const pg = save.pend.g.map((q) => ({ u: q[0] })); if (pg.every((c) => SYMBOLS[c.u])) { setGrid(pg); setView(pg); setPend({ grid: pg, rerolled: !!save.pend.rr }); } }
             setMsg('저장된 진행을 불러왔습니다');
@@ -156,14 +156,14 @@ export function App() {
     }, [saved.ready]); // eslint-disable-line
     useEffect(() => {
         if (!restored.current || phase === 'battle') return;
-        setSave({ coins, shards, units: units.map((u) => [ALLIES.indexOf(u.def), u.rarity, u.lv, u.enh, u.cell, u.promo || 0, ...(u.eng || [0, 0, 0, 0]), u.abs || 1, u.off ? 1 : 0]), region, stage: stageIdx, cleared, pend: pend ? { g: pend.grid.map((c) => [c.u, 0]), rr: pend.rerolled } : null });
+        setSave({ coins, shards, units: units.map((u) => [ALLIES.indexOf(u.def), u.rarity, u.lv, u.enh, u.cell, u.promo || 0, ...(u.eng || [0, 0, 0, 0]), u.abs || 1, u.off ? 1 : 0, u.promo2 || 0]), region, stage: stageIdx, cleared, pend: pend ? { g: pend.grid.map((c) => [c.u, 0]), rr: pend.rerolled } : null });
     }, [coins, shards, units, region, stageIdx, cleared, phase, pend]); // eslint-disable-line
     const [xfer, setXfer] = useState('');
-    const exportSave = () => setXfer(JSON.stringify({ coins, shards, units: units.map((u) => [ALLIES.indexOf(u.def), u.rarity, u.lv, u.enh, u.cell, u.promo || 0, ...(u.eng || [0, 0, 0, 0]), u.abs || 1, u.off ? 1 : 0]), region, stage: stageIdx, cleared, cores }));
+    const exportSave = () => setXfer(JSON.stringify({ coins, shards, units: units.map((u) => [ALLIES.indexOf(u.def), u.rarity, u.lv, u.enh, u.cell, u.promo || 0, ...(u.eng || [0, 0, 0, 0]), u.abs || 1, u.off ? 1 : 0, u.promo2 || 0]), region, stage: stageIdx, cleared, cores }));
     const importSave = () => {
         try {
             const q = JSON.parse(xfer); if (!q || !Array.isArray(q.units)) throw new Error('x');
-            setUnits(((l: Unit[]) => { let n = 0; return l.map((u) => (u.off ? u : ++n <= MAX_UNITS ? u : { ...u, off: true })); })(q.units.map((a: number[]) => ({ uid: uidSeq++, def: ALLIES[a[0]], rarity: a[1] as 0 | 1 | 2, lv: a[2], enh: a[3], cell: a[4], promo: a[5] || 0, eng: [a[6] || 0, a[7] || 0, a[8] || 0, a[9] || 0], abs: a[10] || absFromStar(a[1], a[2]), off: a[11] === 1 })).filter((u: Unit) => u.def)));
+            setUnits(((l: Unit[]) => { let n = 0; return l.map((u) => (u.off ? u : ++n <= MAX_UNITS ? u : { ...u, off: true })); })(q.units.map((a: number[]) => ({ uid: uidSeq++, def: ALLIES[a[0]], rarity: a[1] as 0 | 1 | 2, lv: a[2], enh: a[3], cell: a[4], promo: a[5] || 0, eng: [a[6] || 0, a[7] || 0, a[8] || 0, a[9] || 0], abs: a[10] || absFromStar(a[1], a[2]), off: a[11] === 1, promo2: a[12] || 0 })).filter((u: Unit) => u.def)));
             setCoins(q.coins | 0); setShards(q.shards | 0); setRegion(Math.min(q.region | 0, REGIONS.length - 1)); setStageIdx(q.stage | 0); setCleared(q.cleared || {}); setCores(Array.isArray(q.cores) ? q.cores.filter((x: string) => CORES.some((c) => c.id === x)).slice(0, MAX_CORES) : []); setOffer(null); setSpins(0); setNudges(NUDGE_PER_WAVE); battleRef.current = null; setPend(null); setGrid(null); setView(null); setPhase('prep'); setMsg('불러왔습니다'); setMap(false);
         } catch { setMsg('저장 코드를 읽지 못했습니다'); }
     };
@@ -222,7 +222,7 @@ export function App() {
     };
     const summon = () => {
         if (pend) { const e = evalGrid(pend.grid); if (e.units || e.shards) { commit(pend.grid); return; } }
-        if (spinning || phase === 'battle' || coins < spinCost) return;
+        if (spinning || phase === 'battle' || coins < spinCost || units.length >= MAX_ROSTER) return;
         if (pend) setPend(null);
         setCoins((c) => c - spinCost); setSpins((n) => n + 1); setSpinning(true); setSel(null); setFlash(false);
         const base = grid; const keep = held.slice();
@@ -252,9 +252,8 @@ export function App() {
         const r = { list: [...units, ...made], merged: [] as string[] }; const parts: string[] = [];
         let list = r.list; let over = 0; let benched = 0;
         { let on = units.filter((x) => !x.off).length; list = list.map((x) => { if (made.includes(x)) { if (on < MAX_UNITS) { on++; return x; } benched++; return { ...x, off: true }; } return x; }); }
-        if (list.length > MAX_ROSTER) { const extra = list.length - MAX_ROSTER; const drop = new Set(made.slice(made.length - extra).map((x) => x.uid)); over = drop.size; list = list.filter((x) => !drop.has(x.uid)); setCoins((c) => c + over); }
         if (made.length) parts.push(`${ev.wins.filter((w) => w.kind === 'line').length}줄 소환 ${made.length}기`); if (bonus) parts.push(`◆줄 코인 +${bonus}`); parts.push(...cx);
-        setMsg(parts.join(' · ') + (r.merged.length ? ` · 합성! ${r.merged.join(', ')}` : '') + (benched ? ` · 출전 ${MAX_UNITS}기 가득: ${benched}기는 대기(유닛 선택 후 교체 가능)` : '') + (over ? ` · 보유 상한 ${MAX_ROSTER}기 초과 ${over}기는 코인 +${over}` : ''));
+        setMsg(parts.join(' · ') + (r.merged.length ? ` · 합성! ${r.merged.join(', ')}` : '') + (benched ? ` · 출전 ${MAX_UNITS}기 가득: ${benched}기는 대기(유닛 선택 후 교체 가능)` : ''));
         setUnits(list);
         setPend(null); setFlash(true); setUndo(null); setTimeout(() => setFlash(false), 900);
     };
@@ -273,6 +272,10 @@ export function App() {
         setUnits(units.map((u) => (u.uid === selUnit.uid ? { ...u, promo: br + 1 } : u))); setMsg(`${selUnit.def.name} 승급: ${PROMOS[selUnit.def.role][br]}`);
     };
     const [swapFor, setSwapFor] = useState<number | null>(null);
+    const promote2 = (br: number) => {
+        if (!selUnit || selUnit.lv < 3 || !selUnit.promo || selUnit.promo2) return;
+        setUnits(units.map((u) => (u.uid === selUnit.uid ? { ...u, promo2: br + 1 } : u))); setMsg(`${selUnit.def.name} 2차 승급: ${PROMOS2[selUnit.def.role][br]}`);
+    };
     const toggleOff = (uid: number) => {
         const t = units.find((u) => u.uid === uid); if (!t) return;
         if (!t.off) { if (board.length <= 1) { setMsg('출전 유닛이 최소 1기는 있어야 합니다'); return; } setUnits(units.map((u) => (u.uid === uid ? { ...u, off: true } : u))); setMsg(`${t.def.name} 출전 제외(대기). 삭제되지 않고 보유 중입니다`); }
@@ -347,7 +350,7 @@ export function App() {
                     : <button key={c} type="button" className={`sb-mini${held[c] ? ' on' : ''}`} disabled={spinning || !!pend || !grid} onClick={() => toggleHold(c)}>{held[c] ? '고정됨' : '고정'}</button>)}</div>
                 <div className="sb-gridctl">{[0, 1, 2].map((c) => <button key={c} type="button" className="sb-mini" disabled={!pend || nudges < 1 || spinning} onClick={() => nudge(c)}>넛지↓ {nudges}/{NUDGE_PER_WAVE}</button>)}</div>
             </div>
-            <button type="button" className="sb-btn sb-summon" disabled={spinning || ((!pend || !(evalGrid(pend.grid).units || evalGrid(pend.grid).shards)) && (phase === 'battle' || coins < spinCost)) || !ready || !saved.ready} onClick={summon}>{pend && (evalGrid(pend.grid).units || evalGrid(pend.grid).shards) ? <>소환 확정<small>{evalGrid(pend.grid).units ? `${evalGrid(pend.grid).units}기` : `코인 +${Math.round(evalGrid(pend.grid).shards * 0.6)}`}</small></> : <>소환<small>● {spinCost}</small></>}</button>
+            <button type="button" className="sb-btn sb-summon" disabled={spinning || (units.length >= MAX_ROSTER && !(pend && (evalGrid(pend.grid).units || evalGrid(pend.grid).shards))) || ((!pend || !(evalGrid(pend.grid).units || evalGrid(pend.grid).shards)) && (phase === 'battle' || coins < spinCost)) || !ready || !saved.ready} onClick={summon}>{pend && (evalGrid(pend.grid).units || evalGrid(pend.grid).shards) ? <>소환 확정<small>{evalGrid(pend.grid).units ? `${evalGrid(pend.grid).units}기` : `코인 +${Math.round(evalGrid(pend.grid).shards * 0.6)}`}</small></> : <>소환<small>{units.length >= MAX_ROSTER ? '보유 가득 · 흡수로 정리' : `● ${spinCost}`}</small></>}</button>
         </div>
         <div className="sb-bar">
             {phase === 'prep' && <><button type="button" className="sb-btn go" disabled={!ready || !reg.ready || spinning || (!!pend && !!(evalGrid(pend.grid).units || evalGrid(pend.grid).shards))} onClick={() => { if (pend) { setPend(null); setHeld([false, false, false]); } startFight(); }}>{pend && (evalGrid(pend.grid).units || evalGrid(pend.grid).shards) ? '소환 확정 먼저' : '전투 시작'}</button></>}
@@ -356,9 +359,10 @@ export function App() {
             {phase === 'lose' && <button type="button" className="sb-btn go" onClick={() => toPrep()}>다시 준비</button>}
         </div>
         {selUnit && <div className="sb-info">
-            <div><b>{selUnit.promo ? PROMOS[selUnit.def.role][selUnit.promo - 1] : selUnit.def.name}</b> <span style={{ color: RARITY_COLOR[selUnit.rarity] }}>{RARITY_NAME[selUnit.rarity]}</span> · {selUnit.def.role} · ★{selUnit.lv}<br />흡수Lv {selUnit.abs || 1}{selUnit.lv < 3 ? `/${STAR_AT[selUnit.rarity][selUnit.lv - 1]}` : ' MAX'} · 각인칸 {(selUnit.eng || []).filter((x) => x > 0).length}/{IMP_SLOTS[selUnit.rarity]}<br />체력 {unitHp(selUnit)} 공격 {unitAtk(selUnit)}{selUnit.def.heal ? ` 치유 ${unitHeal(selUnit)}` : ''}
+            <div><b>{selUnit.promo2 ? PROMOS2[selUnit.def.role][selUnit.promo2 - 1] : selUnit.promo ? PROMOS[selUnit.def.role][selUnit.promo - 1] : selUnit.def.name}</b> <span style={{ color: RARITY_COLOR[selUnit.rarity] }}>{RARITY_NAME[selUnit.rarity]}</span> · {selUnit.def.role} · ★{selUnit.lv}<br />흡수Lv {selUnit.abs || 1}{selUnit.lv < 3 ? `/${STAR_AT[selUnit.rarity][selUnit.lv - 1]}` : ' MAX'} · 각인칸 {(selUnit.eng || []).filter((x) => x > 0).length}/{IMP_SLOTS[selUnit.rarity]}<br />체력 {unitHp(selUnit)} 공격 {unitAtk(selUnit)}{selUnit.def.heal ? ` 치유 ${unitHeal(selUnit)}` : ''}
                 <br />각인 {ENGRAVINGS.map((e, i) => (selUnit.eng && selUnit.eng[i] ? `${e.name}${selUnit.eng[i]}` : '')).filter(Boolean).join(' · ') || '없음'}</div>
             <div className="sb-acts">
+                {selUnit.lv >= 3 && !!selUnit.promo && !selUnit.promo2 && [0, 1].map((br) => <button key={'p2' + br} type="button" className="sb-btn sm" onClick={() => promote2(br)}>2차 승급 {PROMOS2[selUnit.def.role][br]}<small>{PROMO2_DESC[br]} (임시)</small></button>)}
                 {selUnit.lv >= 2 && !selUnit.promo && [0, 1].map((br) => <button key={br} type="button" className="sb-btn sm" onClick={() => promote(br)}>승급 {PROMOS[selUnit.def.role][br]}<small>{PROMO_DESC[br]}</small></button>)}
                 <button type="button" className="sb-btn sm" disabled={phase === 'battle'} onClick={() => toggleOff(selUnit.uid)}>{!selUnit.off ? '출전 제외(대기)' : board.length < MAX_UNITS ? '출전시키기' : '출전 교체'}<small>삭제 아님</small></button>
                 <button type="button" className={`sb-btn sm${absorbFor === selUnit.uid ? '' : ' ghost'}`} disabled={units.length < 2 || phase === 'battle'} onClick={() => { setAbsorbFor(absorbFor === selUnit.uid ? null : selUnit.uid); setMsg(absorbFor === selUnit.uid ? '' : '흡수할 유닛을 아래 목록에서 누르세요(흡수된 유닛은 사라지고 각인을 줍니다)'); }}>{absorbFor === selUnit.uid ? '흡수 취소' : '다른 유닛 흡수(각인)'}</button>
@@ -371,7 +375,7 @@ export function App() {
         <div className="sb-bench">
             {units.length === 0 && <span className="sb-empty">보유 유닛 없음 · 소환하세요</span>}
             {units.map((u) => <button type="button" key={u.uid} className={`sb-unit${sel === u.uid ? ' is-sel' : ''}${u.off ? ' is-off' : ''}`} style={{ borderColor: RARITY_COLOR[u.rarity] }} onClick={() => { if (swapFor !== null && !u.off && swapFor !== u.uid) swapWith(u.uid); else if (absorbFor !== null && absorbFor !== u.uid) absorb(u.uid); else setSel(sel === u.uid ? null : u.uid); }}>
-                <Icon sheet={u.def.sheet} ready={ready} lv={u.lv} /><span className="sb-lv">{'★'.repeat(u.lv)}{u.promo ? '◈' : ''}{u.eng && u.eng.some(Boolean) ? '✦' : ''}</span><small>{u.off ? '대기' : u.def.role}</small>
+                <Icon sheet={u.def.sheet} ready={ready} lv={u.lv} /><span className="sb-lv">{'★'.repeat(u.lv)}{u.promo2 ? '◈◈' : u.promo ? '◈' : ''}{u.eng && u.eng.some(Boolean) ? '✦' : ''}</span><small>{u.off ? '대기' : u.def.role}</small>
             </button>)}
         </div>
         {map && <div className="sb-map" role="dialog" aria-label="지역">
