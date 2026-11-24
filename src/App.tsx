@@ -374,7 +374,7 @@ export function App() {
         </div>
         <div className="sb-bench">
             {units.length === 0 && <span className="sb-empty">보유 유닛 없음 · 소환하세요</span>}
-            {units.map((u) => <button type="button" key={u.uid} className={`sb-unit${sel === u.uid ? ' is-sel' : ''}${u.off ? ' is-off' : ''}`} style={{ borderColor: RARITY_COLOR[u.rarity] }} onClick={() => { if (swapFor !== null && !u.off && swapFor !== u.uid) swapWith(u.uid); else if (absorbFor !== null && absorbFor !== u.uid) absorb(u.uid); else setSel(sel === u.uid ? null : u.uid); }}>
+            {[...units.filter((u) => !u.off), ...units.filter((u) => u.off)].map((u) => <button type="button" key={u.uid} className={`sb-unit${sel === u.uid ? ' is-sel' : ''}${u.off ? ' is-off' : ''}`} style={{ borderColor: RARITY_COLOR[u.rarity] }} onClick={() => { if (swapFor !== null && !u.off && swapFor !== u.uid) swapWith(u.uid); else if (absorbFor !== null && absorbFor !== u.uid) absorb(u.uid); else setSel(sel === u.uid ? null : u.uid); }}>
                 <Icon sheet={u.def.sheet} ready={ready} lv={u.lv} /><span className="sb-lv">{'★'.repeat(u.lv)}{u.promo2 ? '◈◈' : u.promo ? '◈' : ''}{u.eng && u.eng.some(Boolean) ? '✦' : ''}</span><small>{u.off ? '대기' : u.def.role}</small>
             </button>)}
         </div>

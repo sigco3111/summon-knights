@@ -94,7 +94,7 @@ body { background: #120c1a; }
 
 /* ── 벤치 / 로드아웃 ─────────────────────── */
 .sb-bench {
-  display: flex; gap: 6px; padding: 8px 10px; overflow-x: auto; min-height: 86px;
+  display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 10px; overflow-y: auto; max-height: 238px; min-height: 86px;
   margin: 0 10px; background: #241a30; border: 2px solid #0c0714;
   box-shadow: inset 2px 2px 0 #3f3054, inset -2px -2px 0 #120b1c;
   scrollbar-width: thin; scrollbar-color: #4f3d68 #17101f;
