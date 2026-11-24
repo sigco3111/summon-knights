@@ -284,10 +284,18 @@ export function App() {
         </div>
         {map && <div className="sb-map" role="dialog" aria-label="지역">
             <div className="sb-maphead"><b>지역</b><button type="button" className="sb-btn sm ghost" onClick={() => setMap(false)}>닫기</button></div>
-            {REGIONS.map((r, ri) => <div key={r.id} className={`sb-reg${ri === region ? ' cur' : ''}${r.ready ? '' : ' lock'}`}>
-                <b>{r.id} {r.name}</b>{r.temp && <small className="sb-temp">개발중 · 임시 보스</small>}
-                {r.ready ? <div className="sb-dots">{Array.from({ length: STAGES_PER_REGION }, (_, k) => <button type="button" key={k} className={cleared[`${r.id}-${k + 1}`] ? 'done' : ''} onClick={() => goStage(ri, k)}>{k === STAGES_PER_REGION - 1 ? '보' : k === STAGES_PER_REGION - 2 ? '정' : k + 1}</button>)}</div> : <small>잠김 · {r.need}</small>}
-            </div>)}
+            {REGIONS.map((r, ri) => {
+                const done = Array.from({ length: STAGES_PER_REGION }, (_, k) => cleared[`${r.id}-${k + 1}`]).filter(Boolean).length;
+                return <div key={r.id} className={`sb-reg${ri === region ? ' cur' : ''}${r.ready ? '' : ' lock'}`}>
+                    <div className="sb-reghead"><b>{r.id} {r.name}</b>{r.temp && <small className="sb-temp">개발중 · 임시 보스</small>}{r.ready && <span className="sb-regprog">{done}/{STAGES_PER_REGION}</span>}</div>
+                    {r.ready ? <div className="sb-dots">{Array.from({ length: STAGES_PER_REGION }, (_, k) => {
+                        const isCur = ri === region && k === stageIdx;
+                        const isDone = !!cleared[`${r.id}-${k + 1}`];
+                        const elite = k === STAGES_PER_REGION - 2, boss = k === STAGES_PER_REGION - 1;
+                        return <button type="button" key={k} className={`${isDone ? 'done' : ''}${isCur ? ' cur' : ''}${elite ? ' elite' : ''}${boss ? ' boss' : ''}`} onClick={() => goStage(ri, k)}>{isDone ? '✓' : boss ? '보스' : elite ? '정예' : k + 1}</button>;
+                    })}</div> : <small>잠김 · {r.need}</small>}
+                </div>;
+            })}
             <div className="sb-xfer"><b>저장 코드</b><small>자동 저장이 안 되는 환경에서는 코드를 복사해 보관하세요.</small>
                 <textarea value={xfer} onChange={(e) => setXfer(e.target.value)} rows={3} aria-label="저장 코드" />
                 <div><button type="button" className="sb-btn sm ghost" onClick={exportSave}>내보내기</button> <button type="button" className="sb-btn sm ghost" onClick={importSave} disabled={phase === 'battle' || !xfer}>불러오기</button></div></div>

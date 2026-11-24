@@ -27572,18 +27572,33 @@
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "\uC9C0\uC5ED" }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { type: "button", className: "sb-btn sm ghost", onClick: () => setMap(false), children: "\uB2EB\uAE30" })
         ] }),
-        REGIONS.map((r, ri) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: `sb-reg${ri === region ? " cur" : ""}${r.ready ? "" : " lock"}`, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("b", { children: [
-            r.id,
-            " ",
-            r.name
-          ] }),
-          r.temp && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { className: "sb-temp", children: "\uAC1C\uBC1C\uC911 \xB7 \uC784\uC2DC \uBCF4\uC2A4" }),
-          r.ready ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "sb-dots", children: Array.from({ length: STAGES_PER_REGION }, (_, k) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { type: "button", className: cleared[`${r.id}-${k + 1}`] ? "done" : "", onClick: () => goStage(ri, k), children: k === STAGES_PER_REGION - 1 ? "\uBCF4" : k === STAGES_PER_REGION - 2 ? "\uC815" : k + 1 }, k)) }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("small", { children: [
-            "\uC7A0\uAE40 \xB7 ",
-            r.need
-          ] })
-        ] }, r.id)),
+        REGIONS.map((r, ri) => {
+          const done = Array.from({ length: STAGES_PER_REGION }, (_, k) => cleared[`${r.id}-${k + 1}`]).filter(Boolean).length;
+          return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: `sb-reg${ri === region ? " cur" : ""}${r.ready ? "" : " lock"}`, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "sb-reghead", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("b", { children: [
+                r.id,
+                " ",
+                r.name
+              ] }),
+              r.temp && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { className: "sb-temp", children: "\uAC1C\uBC1C\uC911 \xB7 \uC784\uC2DC \uBCF4\uC2A4" }),
+              r.ready && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "sb-regprog", children: [
+                done,
+                "/",
+                STAGES_PER_REGION
+              ] })
+            ] }),
+            r.ready ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "sb-dots", children: Array.from({ length: STAGES_PER_REGION }, (_, k) => {
+              const isCur = ri === region && k === stageIdx;
+              const isDone = !!cleared[`${r.id}-${k + 1}`];
+              const elite = k === STAGES_PER_REGION - 2, boss = k === STAGES_PER_REGION - 1;
+              return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { type: "button", className: `${isDone ? "done" : ""}${isCur ? " cur" : ""}${elite ? " elite" : ""}${boss ? " boss" : ""}`, onClick: () => goStage(ri, k), children: isDone ? "\u2713" : boss ? "\uBCF4\uC2A4" : elite ? "\uC815\uC608" : k + 1 }, k);
+            }) }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("small", { children: [
+              "\uC7A0\uAE40 \xB7 ",
+              r.need
+            ] })
+          ] }, r.id);
+        }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "sb-xfer", children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "\uC800\uC7A5 \uCF54\uB4DC" }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "\uC790\uB3D9 \uC800\uC7A5\uC774 \uC548 \uB418\uB294 \uD658\uACBD\uC5D0\uC11C\uB294 \uCF54\uB4DC\uB97C \uBCF5\uC0AC\uD574 \uBCF4\uAD00\uD558\uC138\uC694." }),

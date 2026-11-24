@@ -126,16 +126,23 @@ body { background: #120c1a; }
 .sb-maphead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-family: 'Galmuri11', monospace; font-size: 18px; }
 .sb-map .sb-btn.ghost { background: #8a6f3f; color: #fdf6dd; box-shadow: inset 2px 2px 0 #b3945c, inset -2px -2px 0 #5e4826; border-color: #3a2c18; }
 .sb-reg { padding: 8px 10px; margin-bottom: 6px; background: #f2e9c8; border: 2px solid #a89468; box-shadow: inset 1px 1px 0 #fbf3d5; font-size: 13px; }
-.sb-reg.cur { border-color: #8a6420; outline: 2px solid #d9a441; }
-.sb-reg.lock { color: #8a7a52; }
+.sb-reg.cur { border-color: #8a6420; outline: 2px solid #d9a441; background: #f7eecb; }
+.sb-reg.lock { color: #8a7a52; opacity: .62; background: #e4d6ac; }
 .sb-reg small { display: block; margin-top: 4px; font-size: 11px; }
+.sb-reghead { display: flex; align-items: center; gap: 8px; }
+.sb-reghead .sb-temp { margin-top: 0; }
+.sb-regprog { margin-left: auto; font-size: 11px; color: #7a6a42; background: #e0d0a0; border: 1px solid #a89468; padding: 1px 7px; }
 .sb-dots { display: flex; gap: 5px; margin-top: 6px; }
 .sb-dots button {
   flex: 1; min-height: 38px; background: #e0d0a0; border: 2px solid #8a6f3f; color: #3a2c18;
   font: inherit; font-size: 12px; cursor: pointer; box-shadow: inset 1px 1px 0 #fbf3d5;
 }
+.sb-dots button.elite { background: #d8bd84; border-color: #7a5c28; }
+.sb-dots button.boss { background: #c98a6a; border-color: #6e3a22; color: #3a1408; }
 .sb-dots button:active { transform: translateY(1px); }
-.sb-dots button.done { background: #b9c98a; border-color: #5e7040; }
+.sb-dots button.cur { outline: 2px solid #d9a441; box-shadow: inset 1px 1px 0 #fbf3d5, 0 0 6px #d9a441; }
+.sb-dots button.done { background: #b9c98a; border-color: #5e7040; color: #2e3a18; font-weight: 700; }
+.sb-dots button.done.boss { background: #a9bd7a; }
 .sb-credit { font-size: 10px; color: #8a7a52; line-height: 1.6; }
 .sb-temp { display: inline-block; margin-left: 6px; color: #9a5b1e; font-size: 10px; }
 
@@ -161,7 +168,15 @@ body { background: #120c1a; }
 /* ── 좁은 화면: 전장 위, 패널 아래 ─────────── */
 @media (max-width: 700px) {
   .sb-cabinet { grid-template-columns: 1fr; }
-  .sb-field { margin: 10px; }
-  .sb-side { margin: 12px 10px 0; }
+  .sb-field { margin: 8px; }
+  .sb-side { margin: 8px; gap: 6px; padding: 7px; }
   .sb-app { border-left: 0; border-right: 0; }
+  .sb-slot { flex-direction: row; align-items: stretch; gap: 6px; }
+  .sb-slot .sb-reels { flex: 1; }
+  .sb-slot .sb-summon { width: 108px; min-height: 0; }
+  .sb-reel { height: 46px; }
+  .sb-icon { width: 38px; height: 34px; }
+  .sb-bar .sb-btn.go { min-height: 44px; }
+  .sb-msg { min-height: 14px; }
+  .sb-dots button { min-height: 34px; font-size: 11px; padding: 0 2px; }
 }
