@@ -326,3 +326,66 @@ export function rollUnit(): UnitDef {
     for (let i = 0; i < ALLIES.length; i++) { r -= w[i]; if (r <= 0) return ALLIES[i]; }
     return ALLIES[0];
 }
+
+// ---------- 편성(자동 선발/진형) ----------
+const ROLE_ORDER: Record<string, number> = { '전열': 0, '딜러': 1, '원거리': 2, '지원': 3 };
+/** 적은 오른쪽에서 진입해 왼쪽으로 진군한다 → 고x 열(2)=전방, 저x 열(0)=후방. */
+export function colOrder(def: UnitDef): number[] {
+    if (def.role === '전열') return [2, 1, 0];
+    if (def.role === '딜러') return def.ranged ? [1, 0, 2] : [1, 2, 0];
+    return [0, 1, 2];
+}
+/** 유닛의 실효 전투력(규칙상 존재하는 값만 사용: 체력·공격·쿨다운·치유·희귀도/레벨/강화 배율). */
+export function unitPower(u: { def: UnitDef; rarity: Rarity; lv: number; enh: number }): number {
+    const dps = (u.def.atk * 1000) / u.def.cd + (u.def.heal ? ((u.def.heal * 1000) / u.def.cd) * 1.2 : 0);
+    return unitMult(u) * Math.sqrt(u.def.hp * dps);
+}
+export function assignCells(waiting: Unit[], used: Set<number>, max = 6): Map<number, number> {
+    const list = [...waiting].sort((a, b) => (ROLE_ORDER[a.def.role] - ROLE_ORDER[b.def.role]) || (unitPower(b) - unitPower(a)));
+    const out = new Map<number, number>();
+    for (const u of list) {
+        if (used.size >= max) break;
+        let put = -1;
+        for (const col of colOrder(u.def)) { for (let row = 0; row < 3; row++) { const c = row * 3 + col; if (!used.has(c)) { put = c; break; } } if (put >= 0) break; }
+        if (put >= 0) { used.add(put); out.set(u.uid, put); }
+    }
+    return out;
+}
+export interface FormationPlan { cells: Map<number, number>; picked: number; candidates: number; winRate: number; hpLeft: number; stageLabel: string; }
+/** 전체 최적 편성: 역할 조합(시너지 포함) 후보를 만들고, 현재 스테이지를 실제 전투 코드로 모의해 가장 좋은 편성을 고른다. */
+export function optimizeFormation(units: Unit[], stage: StageDef, runs = 8, max = 6): FormationPlan {
+    const roles = ['전열', '딜러', '원거리', '지원'];
+    const byRole: Record<string, Unit[]> = {};
+    roles.forEach((r) => { byRole[r] = units.filter((u) => u.def.role === r).sort((a, b) => unitPower(b) - unitPower(a)); });
+    const total = Math.min(max, units.length);
+    const pats: { pick: Unit[]; analytic: number }[] = [];
+    const rec = (ri: number, left: number, pick: Unit[]) => {
+        if (ri === roles.length) {
+            if (left !== 0) return;
+            const cnt: Record<string, number> = {}; pick.forEach((u) => { cnt[u.def.role] = (cnt[u.def.role] || 0) + 1; });
+            let s = 0; pick.forEach((u) => { s += unitPower(u) * (1 + synergyBonus(cnt[u.def.role])); });
+            pats.push({ pick: [...pick], analytic: s }); return;
+        }
+        const avail = byRole[roles[ri]].length;
+        for (let k = 0; k <= Math.min(avail, left); k++) rec(ri + 1, left - k, [...pick, ...byRole[roles[ri]].slice(0, k)]);
+    };
+    rec(0, total, []);
+    pats.sort((a, b) => b.analytic - a.analytic);
+    const top = pats.slice(0, 8);
+    let best: { cells: Map<number, number>; score: number; win: number; hp: number } | null = null;
+    for (const p of top) {
+        const cells = assignCells(p.pick, new Set(), max);
+        const board: Unit[] = p.pick.map((u) => ({ ...u, cell: cells.get(u.uid) ?? -1 })).filter((u) => u.cell >= 0);
+        let win = 0, hp = 0, tm = 0;
+        for (let i = 0; i < runs; i++) {
+            const b = startBattle(board.map((u) => ({ ...u })), stage); let g = 0;
+            while (!b.result && g++ < 20000) step(b, 50);
+            if (b.result === 'win') win++;
+            const al = b.fighters.filter((f) => f.team === 'a'); const mh = al.reduce((s, f) => s + f.maxHp, 0) || 1;
+            hp += al.reduce((s, f) => s + (f.dead ? 0 : Math.max(0, f.hp)), 0) / mh; tm += b.time;
+        }
+        const score = (win / runs) * 1000 + (hp / runs) * 100 - tm / runs / 1000 + p.analytic * 0.001;
+        if (!best || score > best.score) best = { cells, score, win: win / runs, hp: hp / runs };
+    }
+    return { cells: best ? best.cells : new Map(), picked: best ? best.cells.size : 0, candidates: top.length, winRate: best ? best.win : 0, hpLeft: best ? best.hp : 0, stageLabel: stage.label };
+}

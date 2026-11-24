@@ -15,6 +15,7 @@ const BG_SRC: Record<string, string> = { grotto, forest: bgforest, canopy: bgcan
 import {
     ALLIES, REGIONS, RARITY_NAME, RARITY_COLOR, STAGES_PER_REGION, W, H, MAX_LV, MAX_ENH, buildStage, cellPos, drawBattle, drawSprite, iconDraw, allUrls, registerImg,
     rollRarity, rollUnit, startBattle, step, synergy, synergyBonus, unitMult, enhCost, shardValue, type Battle, type Unit,
+  assignCells, optimizeFormation, unitPower,
 } from './game';
 
 const SUMMON_COST = 3;
@@ -123,6 +124,8 @@ export function App() {
     const [msg, setMsg] = useState('소환해서 유닛을 배치하세요');
     const [kills, setKills] = useState<[number, number]>([0, 0]);
     const [map, setMap] = useState(false);
+    const [formOpen, setFormOpen] = useState(false);
+    const [undo, setUndo] = useState<Unit[] | null>(null);
     const fxRef = useRef<FxLayer | null>(null); if (!fxRef.current && typeof document !== 'undefined') fxRef.current = new FxLayer(W, H);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const battleRef = useRef<Battle | null>(null);
@@ -261,7 +264,7 @@ export function App() {
         const made: Unit[] = spin.targets.map((t, i) => ({ uid: uidSeq++, def: ALLIES[t], rarity: spin.rarities[i] as 0 | 1 | 2, cell: -1, lv: 1, enh: 0 }));
         setUnits((u) => { const r = mergeAll([...u, ...made]); setMsg(r.merged.length ? `합성! ${r.merged.join(', ')}` : `소환: ${made.map((m) => m.def.name).join(', ')}`); return r.list; });
         setReels(spin.targets); setReelRar(spin.rarities);
-        setSpin(null); setSpinning(false); setFlash(true);
+        setSpin(null); setSpinning(false); setFlash(true); setUndo(null);
         const to = setTimeout(() => setFlash(false), 900);
         return () => clearTimeout(to);
     }, [spin, stopped]); // eslint-disable-line
@@ -283,29 +286,45 @@ export function App() {
         const c = cellAt(x, y); hoverRef.current = c < 0 ? null : c;
     };
 
-    const autoPlace = () => {
+    const fillEmpty = () => {
         if (phase === 'battle') return;
-        const ORDER: Record<string, number> = { '전열': 0, '딜러': 1, '원거리': 2, '지원': 3 };
-        // 적은 오른쪽(x=W+30)에서 진입해 왼쪽으로 진군 → 전열=고x(전방), 원거리/지원=저x(후방)
-        const colOrder = (u: Unit): number[] => {
-            if (u.def.role === '전열') return [2, 1, 0];
-            if (u.def.role === '딜러') return u.def.ranged ? [1, 0, 2] : [1, 2, 0];
-            return [0, 1, 2]; // 원거리·지원: 후열→중열→전열(최후 순위)
-        };
         const placed = units.filter((u) => u.cell >= 0);
-        const waiting = units.filter((u) => u.cell < 0).sort((a, b) => (ORDER[a.def.role] - ORDER[b.def.role]) || (b.lv - a.lv));
-        const used = new Set(placed.map((u) => u.cell));
-        const assign = new Map<number, number>();
-        for (const u of waiting) {
-            if (used.size >= MAX_BOARD) break;
-            const order = colOrder(u);
-            let put = -1;
-            for (const col of order) { for (let row = 0; row < 3; row++) { const c = row * 3 + col; if (!used.has(c)) { put = c; break; } } if (put >= 0) break; }
-            if (put >= 0) { used.add(put); assign.set(u.uid, put); }
-        }
+        const assign = assignCells(units.filter((u) => u.cell < 0), new Set(placed.map((u) => u.cell)), MAX_BOARD);
         if (!assign.size) { setMsg('빈 칸에 놓을 대기 유닛이 없습니다(기존 배치는 그대로)'); return; }
+        setUndo(units.map((u) => ({ ...u })));
         setUnits(units.map((u) => (assign.has(u.uid) ? { ...u, cell: assign.get(u.uid)! } : u)));
-        setMsg(`빈 칸에 자동 배치 ${assign.size}기(기존 배치 유지) · 내리기: 배치된 유닛 누르기`);
+        setMsg(`빈 칸에 ${assign.size}기 배치(기존 배치 유지) · 되돌리기 가능`);
+    };
+    const autoFormation = () => {
+        if (phase === 'battle' || !units.length) return;
+        const plan = optimizeFormation(units, stage);
+        const changed = units.filter((u) => u.cell >= 0 && plan.cells.get(u.uid) !== u.cell).length;
+        setUndo(units.map((u) => ({ ...u })));
+        setUnits(units.map((u) => ({ ...u, cell: plan.cells.has(u.uid) ? plan.cells.get(u.uid)! : -1 })));
+        setMsg(`최적 편성 ${plan.picked}기 · ${stage.label} 모의 승률 ${Math.round(plan.winRate * 100)}%${changed ? ` · 기존 배치 ${changed}기 변경(되돌리기 가능)` : ''}`);
+    };
+    const undoFormation = () => {
+        if (!undo) return;
+        const ids = new Set(undo.map((u) => u.uid));
+        if (undo.length !== units.length || units.some((u) => !ids.has(u.uid))) { setUndo(null); setMsg('유닛이 바뀌어 되돌릴 수 없습니다'); return; }
+        const cellOf = new Map(undo.map((u) => [u.uid, u.cell]));
+        setUnits(units.map((u) => ({ ...u, cell: cellOf.get(u.uid)! })));
+        setUndo(null); setMsg('이전 배치로 되돌렸습니다');
+    };
+    const placeTo = (uid: number, cell: number) => {
+        const u = units.find((x) => x.uid === uid); if (!u) return;
+        const t = units.find((x) => x.cell === cell && x.uid !== uid);
+        if (!t && u.cell < 0 && board.length >= MAX_BOARD) { setMsg(`출전은 최대 ${MAX_BOARD}명. 배치된 유닛을 내려주세요`); return; }
+        setUnits(units.map((x) => (x.uid === uid ? { ...x, cell } : t && x.uid === t.uid ? { ...x, cell: u.cell } : x)));
+        flashCellRef.current = { cell, until: performance.now() + 800 };
+        setMsg(t ? `${u.def.name} ↔ ${t.def.name} 자리 교체` : `${u.def.name} 배치`);
+        setSel(null);
+    };
+    const unplace = (uid: number) => { setUnits(units.map((x) => (x.uid === uid ? { ...x, cell: -1 } : x))); setSel(null); setMsg('출전 해제'); };
+    const formCell = (cell: number) => {
+        const here = units.find((u) => u.cell === cell);
+        if (sel !== null) { if (here && here.uid === sel) { setSel(null); return; } placeTo(sel, cell); }
+        else if (here) setSel(here.uid);
     };
 
     const onCanvas = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -368,7 +387,7 @@ export function App() {
             <button type="button" className="sb-btn sb-summon" disabled={spinning || phase === 'battle' || coins < SUMMON_COST || !ready || !saved.ready} onClick={summon}>소환<small>● {SUMMON_COST}</small></button>
         </div>
         <div className="sb-bar">
-            {phase === 'prep' && <><button type="button" className="sb-btn go" disabled={!ready || !reg.ready} onClick={startFight}>전투 시작</button><button type="button" className="sb-btn ghost" disabled={!ready} onClick={autoPlace}>자동 배치</button></>}
+            {phase === 'prep' && <><button type="button" className="sb-btn go" disabled={!ready || !reg.ready} onClick={startFight}>전투 시작</button><button type="button" className="sb-btn ghost" disabled={!ready} onClick={() => setFormOpen(true)}>편성</button><button type="button" className="sb-btn ghost" disabled={!ready || !units.length} onClick={autoFormation}>자동 편성</button>{undo && <button type="button" className="sb-btn ghost" onClick={undoFormation}>되돌리기</button>}</>}
             {phase === 'battle' && <button type="button" className="sb-btn go" disabled>전투 중</button>}
             {phase === 'win' && <><button type="button" className="sb-btn go" onClick={next}>다음 전투</button><button type="button" className="sb-btn ghost" onClick={() => toPrep()}>정비</button></>}
             {phase === 'lose' && <button type="button" className="sb-btn go" onClick={() => toPrep()}>다시 준비</button>}
@@ -386,6 +405,29 @@ export function App() {
                 <Icon sheet={u.def.sheet} ready={ready} lv={u.lv} /><span className="sb-lv">{'★'.repeat(u.lv)}{u.enh ? ` +${u.enh}` : ''}</span><small>{u.def.role}</small>
             </button>)}
         </div>
+        {formOpen && <div className="sb-form" role="dialog" aria-label="편성">
+            <div className="sb-maphead"><b>편성 <small>출전 {board.length}/{MAX_BOARD}</small></b><button type="button" className="sb-btn sm ghost" onClick={() => { setFormOpen(false); setSel(null); }}>닫기</button></div>
+            <div className="sb-syn">{ROLES.map((r) => <span key={r} className={syn[r] ? 'on' : ''}>{r} {syn[r] || 0}{synergyBonus(syn[r] || 0) ? <em>+{Math.round(synergyBonus(syn[r]) * 100)}%</em> : null}</span>)}</div>
+            <div className="sb-fdir"><span>◀ 후방</span><span>적 진입 방향 · 전방 ▶</span></div>
+            <div className="sb-fgrid">{Array.from({ length: 9 }, (_, c) => {
+                const u = units.find((x) => x.cell === c);
+                return <button type="button" key={c} className={`sb-fcell${u ? ' has' : ''}${u && sel === u.uid ? ' is-sel' : ''}${sel !== null && !(u && sel === u.uid) ? ' target' : ''}`} onClick={() => formCell(c)} aria-label={`${c % 3 === 2 ? '전방' : c % 3 === 0 ? '후방' : '중앙'} ${Math.floor(c / 3) + 1}행`}>
+                    {u ? <><Icon sheet={u.def.sheet} ready={ready} lv={u.lv} /><span>{u.def.role} {'★'.repeat(u.lv)}</span></> : <small>{sel !== null ? '여기에 배치' : '빈 칸'}</small>}
+                </button>;
+            })}</div>
+            <div className="sb-factions">
+                <button type="button" className="sb-btn sm" disabled={!units.length} onClick={autoFormation}>최적 편성(전체 재선발)</button>
+                <button type="button" className="sb-btn sm ghost" disabled={!bench.length} onClick={fillEmpty}>빈 칸 채우기(진형 유지)</button>
+                <button type="button" className="sb-btn sm ghost" disabled={!board.length} onClick={() => { setUndo(units.map((u) => ({ ...u }))); setUnits(units.map((u) => ({ ...u, cell: -1 }))); setSel(null); setMsg('모두 내렸습니다 · 되돌리기 가능'); }}>모두 내리기</button>
+                {undo && <button type="button" className="sb-btn sm ghost" onClick={undoFormation}>되돌리기</button>}
+            </div>
+            <div className="sb-fmsg">{msg}</div>
+            {selUnit && <div className="sb-info"><div><b>{selUnit.def.name}</b> <span style={{ color: RARITY_COLOR[selUnit.rarity] }}>{RARITY_NAME[selUnit.rarity]}</span> · {selUnit.def.role} · Lv{selUnit.lv}<br />체력 {Math.round(selUnit.def.hp * unitMult(selUnit))} 공격 {Math.round(selUnit.def.atk * unitMult(selUnit))}{selUnit.def.heal ? ` 치유 ${Math.round(selUnit.def.heal * unitMult(selUnit))}` : ''} · {selUnit.cell >= 0 ? '칸을 눌러 이동·교체' : '칸을 눌러 배치'}</div>
+                {selUnit.cell >= 0 && <div className="sb-acts"><button type="button" className="sb-btn sm ghost" onClick={() => unplace(selUnit.uid)}>내리기</button></div>}</div>}
+            <div className="sb-flist">{[...units].sort((a, b) => unitPower(b) - unitPower(a)).map((u) => <button type="button" key={u.uid} className={`sb-fu${sel === u.uid ? ' is-sel' : ''}${u.cell >= 0 ? ' on' : ''}`} style={{ borderColor: RARITY_COLOR[u.rarity] }} onClick={() => setSel(sel === u.uid ? null : u.uid)}>
+                <Icon sheet={u.def.sheet} ready={ready} lv={u.lv} /><span>{'★'.repeat(u.lv)}{u.enh ? ` +${u.enh}` : ''}</span><small>{u.cell >= 0 ? '출전' : u.def.role}</small>
+            </button>)}{!units.length && <span className="sb-empty">보유 유닛이 없습니다. 소환하세요</span>}</div>
+        </div>}
         {map && <div className="sb-map" role="dialog" aria-label="지역">
             <div className="sb-maphead"><b>지역</b><button type="button" className="sb-btn sm ghost" onClick={() => setMap(false)}>닫기</button></div>
             {REGIONS.map((r, ri) => {

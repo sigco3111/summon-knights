@@ -187,3 +187,23 @@ body { background: #120c1a; }
   .sb-msg { min-height: 30px; }
   .sb-dots button { min-height: 34px; font-size: 11px; padding: 0 2px; }
 }
+
+/* 편성 창 */
+.sb-form { position: absolute; inset: 0; z-index: 6; padding: 12px; overflow-y: auto; background: #e9dcb2; color: #3a2c18; border-top: 4px solid #0c0714; box-shadow: inset 0 3px 0 #fbf3d5; }
+.sb-form .sb-maphead small { font-size: 13px; margin-left: 6px; }
+.sb-form .sb-syn { margin-bottom: 6px; }
+.sb-form .sb-btn.ghost { background: #8a6f3f; color: #fdf6dd; box-shadow: inset 2px 2px 0 #b3945c, inset -2px -2px 0 #5e4826; border-color: #3a2c18; }
+.sb-fdir { display: flex; justify-content: space-between; font-size: 12px; margin: 4px 2px; color: #5a4626; }
+.sb-fgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; max-width: 360px; margin: 0 auto 8px; }
+.sb-fcell { min-height: 84px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: #f2e9c8; border: 2px solid #a89468; color: #3a2c18; font: inherit; font-size: 12px; cursor: pointer; }
+.sb-fcell.has { background: #fff6d0; border-color: #8a6420; }
+.sb-fcell.target { border-style: dashed; border-color: #d9a441; }
+.sb-fcell.is-sel { outline: 3px solid #d9a441; background: #ffe9a0; }
+.sb-factions { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.sb-factions .sb-btn { flex: 1 1 45%; min-height: 44px; }
+.sb-fmsg { min-height: 34px; font-size: 12px; line-height: 17px; color: #5a4626; }
+.sb-form .sb-info { background: #f2e9c8; border: 2px solid #a89468; color: #3a2c18; margin-bottom: 6px; }
+.sb-flist { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; padding-bottom: 10px; }
+.sb-fu { min-height: 78px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f2e9c8; border: 3px solid #a89468; color: #3a2c18; font: inherit; font-size: 11px; cursor: pointer; }
+.sb-fu.on { background: #fff0b8; }
+.sb-fu.is-sel { outline: 3px solid #d9a441; }
