@@ -13,7 +13,7 @@ import fontRegular from './fonts/Galmuri11.woff2';
 import fontBold from './fonts/Galmuri11-Bold.woff2';
 const BG_SRC: Record<string, string> = { grotto, forest: bgforest, canopy: bgcanopy, tundra: bgtundra, hollow: bghollow, mesa: bgmesa, kiln: bgkiln, sodium: bgsodium };
 import {
-    ALLIES, REGIONS, RARITY_NAME, RARITY_COLOR, STAGES_PER_REGION, W, H, MAX_LV, MAX_ENH, buildStage, cellPos, drawBattle, iconDraw, allUrls, registerImg,
+    ALLIES, REGIONS, RARITY_NAME, RARITY_COLOR, STAGES_PER_REGION, W, H, MAX_LV, MAX_ENH, buildStage, cellPos, drawBattle, drawSprite, iconDraw, allUrls, registerImg,
     rollRarity, rollUnit, startBattle, step, synergy, synergyBonus, unitMult, enhCost, shardValue, type Battle, type Unit,
 } from './game';
 
@@ -26,6 +26,61 @@ function Icon({ sheet, ready, lv = 1 }: { sheet: string; ready: boolean; lv?: nu
     const ref = useRef<HTMLCanvasElement>(null);
     useEffect(() => { if (ref.current && ready) iconDraw(ref.current, sheet, 38); }, [sheet, ready, lv]);
     return <canvas ref={ref} width={52} height={46} className="sb-icon" />;
+}
+
+const REEL_SLOT = 64;
+function drawReelFrame(ctx: CanvasRenderingContext2D, pos: number, smear: number, w: number, h: number) {
+    const L = ALLIES.length * REEL_SLOT;
+    ctx.clearRect(0, 0, w, h);
+    for (let i = 0; i < ALLIES.length; i++) {
+        const y = (((i * REEL_SLOT + pos) % L) + L) % L - REEL_SLOT;
+        if (y > h || y < -REEL_SLOT) continue;
+        const cx = w / 2;
+        if (smear > 0) { ctx.globalAlpha = 0.3; drawSprite(ctx, ALLIES[i].sheet, 'idle', 0, cx, y - smear + REEL_SLOT - 6, 44, false, true); ctx.globalAlpha = 1; }
+        drawSprite(ctx, ALLIES[i].sheet, 'idle', 0, cx, y + REEL_SLOT - 6, 44, false, true);
+    }
+}
+
+function Reel({ idx, spin, prev, ready, onStop }: { idx: number; spin: { targets: number[] } | null; prev: number | null; ready: boolean; onStop: (i: number) => void }) {
+    const ref = useRef<HTMLCanvasElement>(null);
+    useEffect(() => {
+        const cvs = ref.current; if (!cvs || !ready) return;
+        const ctx = cvs.getContext('2d'); if (!ctx) return;
+        ctx.imageSmoothingEnabled = false;
+        const L = ALLIES.length * REEL_SLOT;
+        if (!spin) { drawReelFrame(ctx, prev === null ? 0 : (L - prev * REEL_SLOT) % L, 0, cvs.width, cvs.height); return; }
+        const target = spin.targets[idx];
+        const stopStart = 1000 + idx * 550, DECEL = 800;
+        let pos = prev === null ? 0 : (L - prev * REEL_SLOT) % L;
+        let raf = 0, last = performance.now(), done = false;
+        let posS: number | null = null, distS = 0;
+        const t0 = last;
+        const finalMod = (L - target * REEL_SLOT) % L;
+        const tick = (now: number) => {
+            const dt = Math.min(50, now - last); last = now;
+            const el = now - t0;
+            let smear = 0;
+            if (el < stopStart) { pos = (pos + 1500 * dt / 1000) % L; smear = 10; }
+            else {
+                if (posS === null) { posS = pos; distS = ((finalMod - (pos % L) + L) % L) + L; }
+                const u = Math.min(1, (el - stopStart) / DECEL);
+                pos = posS + distS * (1 - Math.pow(1 - u, 3));
+                smear = u < 0.7 ? 6 : 0;
+                if (u >= 1 && !done) {
+                    done = true;
+                    pos = finalMod;
+                    drawReelFrame(ctx, pos, 0, cvs.width, cvs.height);
+                    onStop(idx);
+                    return;
+                }
+            }
+            drawReelFrame(ctx, pos, smear, cvs.width, cvs.height);
+            if (!done) raf = requestAnimationFrame(tick);
+        };
+        raf = requestAnimationFrame(tick);
+        return () => cancelAnimationFrame(raf);
+    }, [spin, ready]); // eslint-disable-line
+    return <canvas ref={ref} width={52} height={REEL_SLOT} className="sb-reelcvs" />;
 }
 
 function mergeAll(list: Unit[]): { list: Unit[]; merged: string[] } {
@@ -58,7 +113,11 @@ export function App() {
     const [sel, setSel] = useState<number | null>(null);
     const [phase, setPhase] = useState<'prep' | 'battle' | 'win' | 'lose'>('prep');
     const [reels, setReels] = useState<(number | null)[]>([null, null, null]);
+    const [reelRar, setReelRar] = useState<(number | null)[]>([null, null, null]);
     const [spinning, setSpinning] = useState(false);
+    const [spin, setSpin] = useState<{ targets: number[]; rarities: number[] } | null>(null);
+    const [stopped, setStopped] = useState(0);
+    const [flash, setFlash] = useState(false);
     const [msg, setMsg] = useState('소환해서 유닛을 배치하세요');
     const [kills, setKills] = useState<[number, number]>([0, 0]);
     const [map, setMap] = useState(false);
@@ -190,19 +249,22 @@ export function App() {
     const summon = useCallback(() => {
         if (spinning || phase === 'battle' || coins < SUMMON_COST) return;
         setCoins((c) => c - SUMMON_COST); setSpinning(true); setSel(null);
+        setReelRar([null, null, null]); setFlash(false); setStopped(0);
         const picks = [0, 1, 2].map(() => ({ def: rollUnit(), r: rollRarity() }));
-        let tick = 0;
-        const iv = setInterval(() => {
-            tick++;
-            setReels([0, 1, 2].map((i) => (tick > 4 + i * 2 ? ALLIES.indexOf(picks[i].def) : Math.floor(Math.random() * ALLIES.length))));
-            if (tick > 4 + 2 * 2 + 1) {
-                clearInterval(iv);
-                const made: Unit[] = picks.map((p) => ({ uid: uidSeq++, def: p.def, rarity: p.r as 0 | 1 | 2, cell: -1, lv: 1, enh: 0 }));
-                setUnits((u) => { const r = mergeAll([...u, ...made]); setMsg(r.merged.length ? `합성! ${r.merged.join(', ')}` : `소환: ${made.map((m) => m.def.name).join(', ')}`); return r.list; });
-                setSpinning(false);
-            }
-        }, 110);
+        setSpin({ targets: picks.map((p) => ALLIES.indexOf(p.def)), rarities: picks.map((p) => p.r) });
     }, [spinning, phase, coins]);
+
+    useEffect(() => {
+        if (!spin || stopped < 3) return;
+        const made: Unit[] = spin.targets.map((t, i) => ({ uid: uidSeq++, def: ALLIES[t], rarity: spin.rarities[i] as 0 | 1 | 2, cell: -1, lv: 1, enh: 0 }));
+        setUnits((u) => { const r = mergeAll([...u, ...made]); setMsg(r.merged.length ? `합성! ${r.merged.join(', ')}` : `소환: ${made.map((m) => m.def.name).join(', ')}`); return r.list; });
+        setReels(spin.targets); setReelRar(spin.rarities);
+        setSpin(null); setSpinning(false); setFlash(true);
+        const to = setTimeout(() => setFlash(false), 900);
+        return () => clearTimeout(to);
+    }, [spin, stopped]); // eslint-disable-line
+
+    const onReelStop = useCallback(() => setStopped((c) => c + 1), []);
 
     const onCanvas = (e: React.PointerEvent<HTMLCanvasElement>) => {
         if (phase === 'battle') return;
@@ -260,7 +322,7 @@ export function App() {
         </div>
         {phase !== 'win' && phase !== 'lose' && <div className="sb-msg">{msg}</div>}
         <div className="sb-slot">
-            <div className="sb-reels">{reels.map((r, i) => <div key={i} className={`sb-reel${spinning ? ' is-spin' : ''}`}>{r === null ? <span>?</span> : <Icon sheet={ALLIES[r].sheet} ready={ready} />}</div>)}</div>
+            <div className={`sb-reels${flash ? ' flash' : ''}`}>{[0, 1, 2].map((i) => <div key={i} className={`sb-reel${spin && i < stopped ? ' hit' : ''}`} style={!spinning && reelRar[i] !== null ? { borderColor: RARITY_COLOR[reelRar[i] as 0 | 1 | 2] } : undefined}>{spinning || spin ? <Reel idx={i} spin={spin} prev={reels[i]} ready={ready} onStop={onReelStop} /> : reels[i] === null ? <span>?</span> : <Icon sheet={ALLIES[reels[i] as number].sheet} ready={ready} />}</div>)}</div>
             <button type="button" className="sb-btn sb-summon" disabled={spinning || phase === 'battle' || coins < SUMMON_COST || !ready || !saved.ready} onClick={summon}>소환<small>● {SUMMON_COST}</small></button>
         </div>
         {selUnit && <div className="sb-info">
@@ -273,7 +335,7 @@ export function App() {
             {phase === 'win' && <><button type="button" className="sb-btn go" onClick={next}>다음 전투</button><button type="button" className="sb-btn ghost" onClick={() => toPrep()}>정비</button></>}
             {phase === 'lose' && <button type="button" className="sb-btn go" onClick={() => toPrep()}>다시 준비</button>}
         </div>
-        <div className={`sb-save${saved.ready ? '' : ' warn'}`} role="status">{saved.ready ? (/not saved/i.test(saved.message || '') ? '저장 불가: 창을 닫으면 진행이 사라집니다. 지역 메뉴의 저장 코드를 보관하세요.' : '이 기기에 자동 저장됩니다.') + (saved.message ? ` (${saved.message})` : '') : '저장 상태 확인 중'}</div>
+        <div className={`sb-save${saved.ready ? '' : ' warn'}`} role="status">{saved.ready ? (/not saved/i.test(saved.message || '') ? '저장 불가: 창을 닫으면 진행이 사라집니다. 지역 메뉴의 저장 코드를 보관하세요.' : '이 기기에 자동 저장됩니다.') : '저장 상태 확인 중'}</div>
         </aside>
         </div>
         <div className="sb-bench">

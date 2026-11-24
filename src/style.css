@@ -69,6 +69,11 @@ body { background: #120c1a; }
   display: flex; align-items: center; justify-content: center; color: #a89468; font-size: 22px; overflow: hidden;
 }
 .sb-reel.is-spin { border-color: #d9a441; background: #f4e9c4; }
+.sb-reel.hit { animation: sbReelHit 240ms; }
+.sb-reels.flash .sb-reel { animation: sbReelFlash 900ms; }
+.sb-reelcvs { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+@keyframes sbReelHit { 0% { transform: translateY(0); } 35% { transform: translateY(3px) scale(1.05); border-color: #d9a441; } 100% { transform: none; } }
+@keyframes sbReelFlash { 0% { box-shadow: 0 0 0 0 rgba(232, 182, 76, 0.9), inset 2px 2px 0 #fbf3d5, inset -2px -2px 0 #b3a172; } 100% { box-shadow: 0 0 0 10px rgba(232, 182, 76, 0), inset 2px 2px 0 #fbf3d5, inset -2px -2px 0 #b3a172; } }
 .sb-icon { width: 52px; height: 46px; display: block; }
 
 /* ── 버튼 공통 (픽셀 베벨) ─────────────────── */
