@@ -14,7 +14,7 @@ import fontRegular from './fonts/Galmuri11.woff2';
 import fontBold from './fonts/Galmuri11-Bold.woff2';
 const BG_SRC: Record<string, string> = { grotto, forest: bgforest, canopy: bgcanopy, tundra: bgtundra, hollow: bghollow, mesa: bgmesa, kiln: bgkiln, sodium: bgsodium };
 import {
-    ALLIES, MAX_UNITS, MAX_ROSTER, PROMOS2, PROMO2_DESC, REGIONS, RARITY_NAME, RARITY_COLOR, STAGES_PER_REGION, W, H, MAX_LV, MAX_ENH, STAR_AT, IMP_SLOTS, starOf, absFromStar, CORES, MAX_CORES, rollCores, buildStage, cellPos, drawBattle, drawSprite, iconDraw, allUrls, registerImg,
+    ALLIES, MAX_UNITS, MAX_ROSTER, PROMOS2, PROMO2_DESC, REGIONS, RARITY_NAME, RARITY_COLOR, STAGES_PER_REGION, W, H, MAX_LV, MAX_ENH, STAR_AT, IMP_SLOTS, starOf, absFromStar, CORES, MAX_CORES, rollCores, UPS, MAX_UP_STACK, rollUps, buildStage, cellPos, drawBattle, drawSprite, iconDraw, allUrls, registerImg,
     rollRarity, rollUnit, startBattle, step, synergy, synergyBonus, unitMult, enhCost, shardValue, type Battle, type Unit,
   assignCells, optimizeFormation, unitPower, ENGRAVINGS, MAX_ENG, PROMOS, PROMO_DESC, engIndexOf, unitHp, unitAtk, unitHeal, CELL_X, evalGrid, rollCell, rollSymbolUnit, SYMBOLS, LINE_SUMMON, SPECIAL_SHARDS, type GridCell,
 } from './game';
@@ -67,6 +67,7 @@ export function App() {
     const [cleared, setCleared] = useState<Record<string, boolean>>({});
     const [cores, setCores] = useState<string[]>([]); const coresRef = useRef<string[]>([]); coresRef.current = cores;
     const [offer, setOffer] = useState<string[] | null>(null);
+    const [ups, setUps] = useState<string[]>([]); const upsRef = useRef<string[]>([]); upsRef.current = ups; const [upOffer, setUpOffer] = useState<string[] | null>(null);
     const [sel, setSel] = useState<number | null>(null);
     const hoverRef = useRef<number | null>(null);
     const flashCellRef = useRef<{ cell: number; until: number } | null>(null);
@@ -143,34 +144,35 @@ export function App() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const [save, setSave, saved] = useLocalState<{ coins: number; shards: number; units: number[][]; region: number; stage: number; cleared: Record<string, boolean>; pend?: { g: number[][]; rr: boolean } | null } | null>('slotbound.save.v1', null);
+    const [save, setSave, saved] = useLocalState<{ coins: number; shards: number; units: number[][]; region: number; stage: number; cleared: Record<string, boolean>; cores?: string[]; ups?: string[]; pend?: { g: number[][]; rr: boolean } | null } | null>('slotbound.save.v1', null);
     const restored = useRef(false);
     useEffect(() => {
         if (!saved.ready || restored.current) return; restored.current = true;
         if (save) {
             const us: Unit[] = save.units.map((q) => ({ uid: uidSeq++, def: ALLIES[q[0]], rarity: q[1] as 0 | 1 | 2, lv: q[2], enh: q[3], cell: q[4], promo: q[5] || 0, eng: [q[6] || 0, q[7] || 0, q[8] || 0, q[9] || 0], abs: q[10] || absFromStar(q[1], q[2]), off: q[11] === 1, promo2: q[12] || 0 })).filter((u) => u.def);
             setUnits(((l: Unit[]) => { let n = 0; return l.map((u) => (u.off ? u : ++n <= MAX_UNITS ? u : { ...u, off: true })); })(us)); setCoins(save.coins); setShards(save.shards); setRegion(Math.min(save.region, REGIONS.length - 1)); setStageIdx(save.stage); setCleared(save.cleared || {});
+            { const sv = save as unknown as { cores?: string[]; ups?: string[] }; if (Array.isArray(sv.cores)) setCores(sv.cores.filter((x) => CORES.some((c) => c.id === x)).slice(0, MAX_CORES)); if (Array.isArray(sv.ups)) setUps(sv.ups.filter((x) => UPS.some((d) => d.id === x)).slice(0, 40)); }
             if (save.pend && save.pend.g.length === 9) { const pg = save.pend.g.map((q) => ({ u: q[0] })); if (pg.every((c) => SYMBOLS[c.u])) { setGrid(pg); setView(pg); setPend({ grid: pg, rerolled: !!save.pend.rr }); } }
             setMsg('저장된 진행을 불러왔습니다');
         }
     }, [saved.ready]); // eslint-disable-line
     useEffect(() => {
         if (!restored.current || phase === 'battle') return;
-        setSave({ coins, shards, units: units.map((u) => [ALLIES.indexOf(u.def), u.rarity, u.lv, u.enh, u.cell, u.promo || 0, ...(u.eng || [0, 0, 0, 0]), u.abs || 1, u.off ? 1 : 0, u.promo2 || 0]), region, stage: stageIdx, cleared, pend: pend ? { g: pend.grid.map((c) => [c.u, 0]), rr: pend.rerolled } : null });
-    }, [coins, shards, units, region, stageIdx, cleared, phase, pend]); // eslint-disable-line
+        setSave({ coins, shards, units: units.map((u) => [ALLIES.indexOf(u.def), u.rarity, u.lv, u.enh, u.cell, u.promo || 0, ...(u.eng || [0, 0, 0, 0]), u.abs || 1, u.off ? 1 : 0, u.promo2 || 0]), region, stage: stageIdx, cleared, cores, ups, pend: pend ? { g: pend.grid.map((c) => [c.u, 0]), rr: pend.rerolled } : null });
+    }, [coins, shards, units, region, stageIdx, cleared, phase, pend, cores, ups]); // eslint-disable-line
     const [xfer, setXfer] = useState('');
-    const exportSave = () => setXfer(JSON.stringify({ coins, shards, units: units.map((u) => [ALLIES.indexOf(u.def), u.rarity, u.lv, u.enh, u.cell, u.promo || 0, ...(u.eng || [0, 0, 0, 0]), u.abs || 1, u.off ? 1 : 0, u.promo2 || 0]), region, stage: stageIdx, cleared, cores }));
+    const exportSave = () => setXfer(JSON.stringify({ coins, shards, units: units.map((u) => [ALLIES.indexOf(u.def), u.rarity, u.lv, u.enh, u.cell, u.promo || 0, ...(u.eng || [0, 0, 0, 0]), u.abs || 1, u.off ? 1 : 0, u.promo2 || 0]), region, stage: stageIdx, cleared, cores, ups }));
     const importSave = () => {
         try {
             const q = JSON.parse(xfer); if (!q || !Array.isArray(q.units)) throw new Error('x');
             setUnits(((l: Unit[]) => { let n = 0; return l.map((u) => (u.off ? u : ++n <= MAX_UNITS ? u : { ...u, off: true })); })(q.units.map((a: number[]) => ({ uid: uidSeq++, def: ALLIES[a[0]], rarity: a[1] as 0 | 1 | 2, lv: a[2], enh: a[3], cell: a[4], promo: a[5] || 0, eng: [a[6] || 0, a[7] || 0, a[8] || 0, a[9] || 0], abs: a[10] || absFromStar(a[1], a[2]), off: a[11] === 1, promo2: a[12] || 0 })).filter((u: Unit) => u.def)));
-            setCoins(q.coins | 0); setShards(q.shards | 0); setRegion(Math.min(q.region | 0, REGIONS.length - 1)); setStageIdx(q.stage | 0); setCleared(q.cleared || {}); setCores(Array.isArray(q.cores) ? q.cores.filter((x: string) => CORES.some((c) => c.id === x)).slice(0, MAX_CORES) : []); setOffer(null); setSpins(0); setNudges(NUDGE_PER_WAVE); battleRef.current = null; setPend(null); setGrid(null); setView(null); setPhase('prep'); setMsg('불러왔습니다'); setMap(false);
+            setCoins(q.coins | 0); setShards(q.shards | 0); setRegion(Math.min(q.region | 0, REGIONS.length - 1)); setStageIdx(q.stage | 0); setCleared(q.cleared || {}); setUps(Array.isArray(q.ups) ? q.ups.filter((x: string) => UPS.some((d) => d.id === x)).slice(0, 40) : []); setUpOffer(null); setCores(Array.isArray(q.cores) ? q.cores.filter((x: string) => CORES.some((c) => c.id === x)).slice(0, MAX_CORES) : []); setOffer(null); setSpins(0); setNudges(NUDGE_PER_WAVE); battleRef.current = null; setPend(null); setGrid(null); setView(null); setPhase('prep'); setMsg('불러왔습니다'); setMap(false);
         } catch { setMsg('저장 코드를 읽지 못했습니다'); }
     };
     const [speed, setSpeed] = useState(1); const speedRef = useRef(1); speedRef.current = speed;
     const [confirmReset, setConfirmReset] = useState(false);
     useEffect(() => { if (!confirmReset) return; const t = setTimeout(() => setConfirmReset(false), 4000); return () => clearTimeout(t); }, [confirmReset]);
-    const resetAll = () => { if (!confirmReset) { setConfirmReset(true); return; } setConfirmReset(false); setUnits([]); setCores([]); setOffer(null); setSpins(0); setNudges(NUDGE_PER_WAVE); setCoins(12); setShards(0); setRegion(0); setStageIdx(0); setCleared({}); battleRef.current = null; setPend(null); setGrid(null); setView(null); setHeld([false, false, false]); setPhase('prep'); setMap(false); setMsg('처음부터 시작'); };
+    const resetAll = () => { if (!confirmReset) { setConfirmReset(true); return; } setConfirmReset(false); setUnits([]); setCores([]); setUps([]); setUpOffer(null); setOffer(null); setSpins(0); setNudges(NUDGE_PER_WAVE); setCoins(12); setShards(0); setRegion(0); setStageIdx(0); setCleared({}); battleRef.current = null; setPend(null); setGrid(null); setView(null); setHeld([false, false, false]); setPhase('prep'); setMap(false); setMsg('처음부터 시작'); };
 
     const reg = REGIONS[region];
     const board = units.filter((u) => !u.off); const benchN = units.length - board.length;
@@ -193,7 +195,8 @@ export function App() {
                         const st = b.stage;
                         if (b.result === 'win') {
                             setCleared((c) => ({ ...c, [st.label]: true }));
-                            const rw = Math.round(st.reward * (coresRef.current.includes('purse') ? 1.25 : 1)); setCoins((c) => c + rw);
+                            const rw = Math.round(st.reward * (coresRef.current.includes('purse') ? 1.25 : 1)) + 2 * upsRef.current.filter((x) => x === 'loot').length; setCoins((c) => c + rw);
+                            setUpOffer(rollUps(upsRef.current).map((x) => x.id));
                             if (coresRef.current.length < MAX_CORES) setOffer(rollCores(coresRef.current).map((x) => x.id));
                             setMsg(`승리 · 코인 +${rw}`);
                         } else {
@@ -305,11 +308,11 @@ export function App() {
 
     useEffect(() => {
         if (!ready || phase !== 'prep') return;
-        const c = startBattle(units.filter((u) => !u.off), stage, true, cores); c.events = []; battleRef.current = c;
+        const c = startBattle(units.filter((u) => !u.off), stage, true, cores, ups); c.events = []; battleRef.current = c;
     }, [units, phase, region, stageIdx, ready]); // eslint-disable-line
     const startFight = () => {
         if (!reg.ready || board.length === 0) { setMsg('먼저 소환해서 유닛을 모으세요'); return; }
-        battleRef.current = startBattle(board, stage, false, cores); battleRef.current.events = []; fxRef.current?.clear(); setKills([0, stage.spawns.length]); setPhase('battle'); setMsg(''); setSel(null);
+        battleRef.current = startBattle(board, stage, false, cores, ups); battleRef.current.events = []; fxRef.current?.clear(); setKills([0, stage.spawns.length]); setPhase('battle'); setMsg(''); setSel(null);
     };
     const toPrep = (nextStage?: number) => { battleRef.current = null; setPhase('prep'); if (nextStage !== undefined) setStageIdx(nextStage); setKills([0, 0]); setMsg('소환으로 유닛을 모으고 전투 시작'); };
     const next = () => {
@@ -333,6 +336,8 @@ export function App() {
             {!ready && <div className="sb-result">{loadError ? '일부 에셋을 불러오지 못했습니다. 새로고침 해주세요.' : `불러오는 중 ${loadProg}/${urls.length + 10}`}</div>}
         </div>
         <aside className="sb-side">
+        {upOffer && <div className="sb-info" style={{ flexDirection: 'column' }}><b>승리 보상: 강화 선택 (개발중·임시, 우리 설계)</b>{upOffer.map((id) => { const d = UPS.find((x) => x.id === id)!; return <button key={id} type="button" className="sb-btn sm" onClick={() => { setUps((p) => [...p, id]); setUpOffer(null); setMsg(`${d.name} 획득 (${ups.filter((x) => x === id).length + 1}/${MAX_UP_STACK})`); }}>{d.name} ({ups.filter((x) => x === id).length}/{MAX_UP_STACK})<small>{d.desc}</small></button>; })}</div>}
+        {ups.length > 0 && <div className="sb-info" style={{ flexDirection: 'column', gap: 2 }}><b>보유 강화</b><span>{UPS.filter((d) => ups.includes(d.id)).map((d) => `${d.name} x${ups.filter((x) => x === d.id).length}`).join(' · ')}</span></div>}
         {offer && <div className="sb-info" style={{ flexDirection: 'column' }}><b>코어 선택 (개발중·임시)</b>{offer.map((id) => { const c = CORES.find((x) => x.id === id)!; return <button key={id} type="button" className="sb-btn sm" onClick={() => { setCores((p) => [...p, id]); setOffer(null); setMsg(`${c.name} 획득`); }}>{c.name}<small>{c.orig ? '[원작 문구] ' : '[우리 설계] '}{c.desc}</small></button>; })}</div>}
         {cores.length > 0 && <div className="sb-info" style={{ flexDirection: 'column', gap: 2 }}><b>보유 코어 {cores.length}/{MAX_CORES}</b>{cores.map((id) => <span key={id}>{CORES.find((x) => x.id === id)?.name}: {CORES.find((x) => x.id === id)?.desc}</span>)}</div>}
         <div className="sb-syn"><span className="cnt">필드 유닛 {board.length}/{MAX_BOARD}{benchN ? ` · 대기 ${benchN}` : ''}</span><span>자동 이동 전투</span></div>

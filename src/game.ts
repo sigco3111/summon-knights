@@ -170,6 +170,24 @@ export const CORES: CoreDef[] = [
     { id: 'purse', name: '전리품 코어', desc: '승리 코인 +25%' },
 ];
 export const MAX_CORES = 6;
+export interface UpDef { id: string; name: string; desc: string }
+export const UPS: UpDef[] = [
+    { id: 'atk', name: '공격 강화', desc: '전원 공격 +6%' },
+    { id: 'hp', name: '체력 강화', desc: '전원 체력 +6%' },
+    { id: 'spd', name: '속도 강화', desc: '전원 공격 간격 -4%' },
+    { id: 'heal', name: '치유 강화', desc: '치유량 +10%' },
+    { id: 'loot', name: '전리품 강화', desc: '승리 코인 +2' },
+];
+export const MAX_UP_STACK = 5; // 우리 설계(임시): 종류별 중첩 상한
+export function rollUps(have: string[]): UpDef[] {
+    const pool = UPS.filter((x) => have.filter((h) => h === x.id).length < MAX_UP_STACK); const out: UpDef[] = [];
+    while (out.length < 3 && pool.length) out.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+    return out;
+}
+export function upMods(ups: string[]) {
+    const n = (id: string) => ups.filter((x) => x === id).length;
+    return { atk: 1 + 0.06 * n('atk'), hp: 1 + 0.06 * n('hp'), cd: Math.max(0.6, 1 - 0.04 * n('spd')), heal: 1 + 0.1 * n('heal') };
+}
 export function rollCores(have: string[]): CoreDef[] {
     const pool = CORES.filter((c) => !have.includes(c.id)); const out: CoreDef[] = [];
     while (out.length < 3 && pool.length) out.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
@@ -190,10 +208,10 @@ export function coreMods(cores: string[], list: Unit[], u: Unit) {
     }
     return { hp, atk, heal };
 }
-export function startBattle(board: Unit[], stage: StageDef, camp = false, cores: string[] = []): Battle {
+export function startBattle(board: Unit[], stage: StageDef, camp = false, cores: string[] = [], ups: string[] = []): Battle {
     const list = board.slice(0, MAX_UNITS);
     const fighters: Fighter[] = list.map((u, i) => {
-        const m = unitMult(u); const md0 = unitMods(u); const cm = coreMods(cores, list, u); const md = { ...md0, hp: md0.hp * cm.hp, atk: md0.atk * cm.atk, heal: md0.heal * cm.heal };
+        const m = unitMult(u); const md0 = unitMods(u); const cm = coreMods(cores, list, u); const um = upMods(ups); const md = { ...md0, hp: md0.hp * cm.hp * um.hp, atk: md0.atk * cm.atk * um.atk, heal: md0.heal * cm.heal * um.heal, cd: md0.cd * um.cd };
         const x = 24 + Math.floor(i / 3) * 32 + (i % 3 === 1 ? 14 : 0); const y = CELL_Y[i % 3];
         return {
             team: 'a', key: `a${u.uid}`, sheet: u.def.sheet, x, y, baseX: x, hp: Math.round(u.def.hp * m * md.hp), maxHp: Math.round(u.def.hp * m * md.hp), atk: u.def.atk * m * md.atk, cd: u.def.cd * md.cd, range: u.def.range,
