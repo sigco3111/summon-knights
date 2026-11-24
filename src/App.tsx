@@ -286,15 +286,19 @@ export function App() {
     const autoPlace = () => {
         if (phase === 'battle') return;
         const ORDER: Record<string, number> = { '전열': 0, '딜러': 1, '원거리': 2, '지원': 3 };
-        const COLS: Record<string, number> = { '전열': 2, '딜러': 1, '원거리': 0, '지원': 0 };
+        // 적은 오른쪽(x=W+30)에서 진입해 왼쪽으로 진군 → 전열=고x(전방), 원거리/지원=저x(후방)
+        const colOrder = (u: Unit): number[] => {
+            if (u.def.role === '전열') return [2, 1, 0];
+            if (u.def.role === '딜러') return u.def.ranged ? [1, 0, 2] : [1, 2, 0];
+            return [0, 1, 2]; // 원거리·지원: 후열→중열→전열(최후 순위)
+        };
         const placed = units.filter((u) => u.cell >= 0);
         const waiting = units.filter((u) => u.cell < 0).sort((a, b) => (ORDER[a.def.role] - ORDER[b.def.role]) || (b.lv - a.lv));
         const used = new Set(placed.map((u) => u.cell));
         const assign = new Map<number, number>();
         for (const u of waiting) {
             if (used.size >= MAX_BOARD) break;
-            const pref = COLS[u.def.role];
-            const order = [pref, 2, 1, 0];
+            const order = colOrder(u);
             let put = -1;
             for (const col of order) { for (let row = 0; row < 3; row++) { const c = row * 3 + col; if (!used.has(c)) { put = c; break; } } if (put >= 0) break; }
             if (put >= 0) { used.add(put); assign.set(u.uid, put); }
