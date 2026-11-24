@@ -99,7 +99,7 @@ export interface Unit {
 
 export interface Fighter {
     team: 'a' | 'e'; key: string; sheet: string; x: number; y: number; baseX: number;
-    hp: number; maxHp: number; atk: number; cd: number; range: number; speed: number; px: number; face: number;
+    hp: number; maxHp: number; trail?: number; atk: number; cd: number; range: number; speed: number; px: number; face: number;
     state: 'idle' | 'move' | 'atk' | 'hit' | 'die'; t: number; fired: boolean; cdLeft: number; target: Fighter | null;
     ranged?: 'spear' | 'orb'; heal?: number; flying?: boolean; boss?: boolean; hue?: number; dead: boolean; fade: number; hitT: number; role?: Role; lv?: number;
     name: string;
@@ -253,6 +253,31 @@ export function drawSprite(ctx: CanvasRenderingContext2D, sheet: string, anim: s
     ctx.restore();
 }
 
+function hpColor(r: number, ally: boolean) { return r > 0.5 ? (ally ? '#5fd16a' : '#e0584a') : r > 0.25 ? '#e6b93a' : '#e0402e'; }
+export function drawHpBar(ctx: CanvasRenderingContext2D, f: Fighter) {
+    const ally = f.team === 'a'; const r = Math.max(0, Math.min(1, f.hp / f.maxHp));
+    f.trail = f.trail === undefined ? f.hp : Math.max(f.hp, f.trail - f.maxHp * 0.01);
+    const tr = Math.max(0, Math.min(1, f.trail / f.maxHp));
+    const w = f.boss ? 56 : 32, h = 5; const hx = Math.round(f.x - w / 2), hy = Math.round(f.y - f.px - 12);
+    ctx.fillStyle = '#0b0b0f'; ctx.fillRect(hx - 1, hy - 1, w + 2, h + 2);
+    ctx.fillStyle = ally ? '#2a3b2c' : '#3b2424'; ctx.fillRect(hx, hy, w, h);
+    if (tr > r) { ctx.fillStyle = '#f4f0e0'; ctx.fillRect(hx, hy, Math.round(w * tr), h); }
+    ctx.fillStyle = hpColor(r, ally); ctx.fillRect(hx, hy, Math.round(w * r), h);
+    ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fillRect(hx, hy, Math.round(w * r), 1);
+    ctx.fillStyle = ally ? '#6fb0ff' : '#ffb24a'; ctx.fillRect(hx - 1, hy - 1, 2, h + 2);
+}
+export function drawBossBar(ctx: CanvasRenderingContext2D, b: Battle) {
+    const f = b.fighters.find((x) => x.team === 'e' && x.boss && !x.dead); if (!f) return;
+    f.trail = f.trail === undefined ? f.hp : f.trail;
+    const w = 220, h = 9, x = Math.round((360 - w) / 2), y = 20; const r = Math.max(0, f.hp / f.maxHp), tr = Math.max(r, Math.min(1, f.trail / f.maxHp));
+    ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(x - 2, y - 2, w + 4, h + 4);
+    ctx.fillStyle = '#3b2424'; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = '#f4f0e0'; ctx.fillRect(x, y, Math.round(w * tr), h);
+    ctx.fillStyle = '#d6402e'; ctx.fillRect(x, y, Math.round(w * r), h);
+    ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(x, y, Math.round(w * r), 2);
+    ctx.font = '8px Galmuri11, monospace'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.fillText(`BOSS ${Math.ceil(r * 100)}%`, 180, y + h + 10); ctx.textAlign = 'left';
+}
+
 export function drawBattle(ctx: CanvasRenderingContext2D, b: Battle | null, board: Unit[], bgs: Record<string, HTMLImageElement>, regionBg: string, selectedCell: number | null) {
     ctx.imageSmoothingEnabled = false;
     // background
@@ -286,15 +311,12 @@ export function drawBattle(ctx: CanvasRenderingContext2D, b: Battle | null, boar
                 const loop = f.state === 'idle' || f.state === 'move';
                 if (f.team === 'a') drawLvAura(ctx, f.x, f.y, f.lv || 1);
                 drawSprite(ctx, f.sheet, anim, f.t, f.x, f.y, f.px * (f.team === 'a' ? 1 + 0.06 * ((f.lv || 1) - 1) : 1), f.team === 'e', loop, f.dead ? f.fade : 1, 0, f.team === 'a' ? LV_HUE[f.lv || 1] : (f.hue || 0), true);
-                if (!f.dead) {
-                    const w = f.boss ? 50 : 30; const hx = f.x - w / 2; const hy = f.y - f.px - 10;
-                    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(hx - 1, hy - 1, w + 2, 5);
-                    ctx.fillStyle = f.team === 'a' ? '#5fd16a' : '#e0584a'; ctx.fillRect(hx, hy, w * Math.max(0, f.hp / f.maxHp), 3);
-                }
+                if (!f.dead) drawHpBar(ctx, f);
             } });
         }
     }
     list.sort((p, q) => p.y - q.y).forEach((i) => i.draw());
+    if (b && !b.result) drawBossBar(ctx, b);
     if (b) {
         for (const p of b.projs) {
             if (p.kind === 'spear') { ctx.fillStyle = '#e9d9a6'; ctx.fillRect(p.x - 7, p.y - 1, 14, 2); ctx.fillStyle = '#fff'; ctx.fillRect(p.x + 5, p.y - 2, 3, 4); }
