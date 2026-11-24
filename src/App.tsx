@@ -301,7 +301,7 @@ export function App() {
         const changed = units.filter((u) => u.cell >= 0 && plan.cells.get(u.uid) !== u.cell).length;
         setUndo(units.map((u) => ({ ...u })));
         setUnits(units.map((u) => ({ ...u, cell: plan.cells.has(u.uid) ? plan.cells.get(u.uid)! : -1 })));
-        setMsg(`최적 편성 ${plan.picked}기 · ${stage.label} 모의 승률 ${Math.round(plan.winRate * 100)}%${changed ? ` · 기존 배치 ${changed}기 변경(되돌리기 가능)` : ''}`);
+        setMsg(`추천 편성 ${plan.picked}기 · ${stage.label} 제한 모의(8회) 참고 승률 ${Math.round(plan.winRate * 100)}%, 최적 보장 아님${changed ? ` · 기존 배치 ${changed}기 변경(되돌리기 가능)` : ''}`);
     };
     const undoFormation = () => {
         if (!undo) return;
@@ -416,8 +416,8 @@ export function App() {
                 </button>;
             })}</div>
             <div className="sb-factions">
-                <button type="button" className="sb-btn sm" disabled={!units.length} onClick={autoFormation}>최적 편성(전체 재선발)</button>
-                <button type="button" className="sb-btn sm ghost" disabled={!bench.length} onClick={fillEmpty}>빈 칸 채우기(진형 유지)</button>
+                <button type="button" className="sb-btn sm" disabled={!units.length} onClick={autoFormation}>추천 편성(전체 재선발)</button>
+                <button type="button" className="sb-btn sm ghost" disabled={!bench.length} onClick={fillEmpty}>빈 칸 채우기</button>
                 <button type="button" className="sb-btn sm ghost" disabled={!board.length} onClick={() => { setUndo(units.map((u) => ({ ...u }))); setUnits(units.map((u) => ({ ...u, cell: -1 }))); setSel(null); setMsg('모두 내렸습니다 · 되돌리기 가능'); }}>모두 내리기</button>
                 {undo && <button type="button" className="sb-btn sm ghost" onClick={undoFormation}>되돌리기</button>}
             </div>
