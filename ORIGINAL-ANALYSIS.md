@@ -14,6 +14,15 @@
 - 비공식 컨트롤/설정: https://slotbound.fun/guides/reference/controls/
 - 비공식 플레이 가이드: https://slotbound.wiki/guides/slotbound-how-to-play , https://slotbound.wiki/controls/
 
+## 공식 패치노트로 교차 확인된 항목 (Steam 커뮤니티 허브 v1.0.3, 2026-11-22)
+출처: https://steamcommunity.com/app/4459590
+- [공식] 넛지(Nudge) 존재: 넛지 후 재지급되는 당첨 라인 관련 수정 기록("God of Nudges" 업적)
+- [공식] 흡수(Absorb) 창과 "Hold to Absorb" 존재, 최저 희귀도 유닛부터 흡수
+- [공식] 키보드 단축키 A, Space가 흡수 창에서 동작
+- [공식] 유닛을 드래그하는 조작 존재(트랙패드 드래그 관련 수정 기록)
+- [공식] 퀘스트 리롤, 일시정지 화면의 "Give Up" 버튼, 컬렉션 진영별 보기
+- 위 항목은 공식 패치노트 문장 기준이며, 직접 플레이로 확인한 것은 아님. 키 매핑 세부(1/2/3 넛지, 유닛 잠금 위치 등)는 여전히 [비공식].
+
 ## 원작 동작 (확인된 사실)
 ### 슬롯 머신
 - [공식] 3x3 슬롯 머신. 스핀으로 유닛 소환, 라인 매치, 잭팟, 전설급 "Prism" 유닛 존재
