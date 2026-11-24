@@ -80,7 +80,7 @@ export interface StageDef { region: number; index: number; kind: '일반' | '정
 export function buildStage(region: RegionDef, index: number): StageDef {
     const kind: StageDef['kind'] = index === STAGES_PER_REGION - 1 ? '보스' : index === STAGES_PER_REGION - 2 ? '정예' : '일반';
     const global = (region.id - 1) * STAGES_PER_REGION + index;
-    const mult = 1 + global * 0.2 + (kind === '보스' ? 0.4 : 0);
+    const mult = 1 + global * 0.13 + (kind === '보스' ? 0.4 : 0);
     const spawns: { id: string; at: number }[] = [];
     const n = 6 + Math.floor(index * 1.5) + (region.id - 1) * 2;
     let t = 1200;
@@ -145,7 +145,7 @@ function spawnEnemy(b: Battle, id: string) {
     const y = d.flying ? CELL_Y[lane] - 26 : CELL_Y[lane];
     const m = b.stage.mult;
     b.fighters.push({
-        team: 'e', key: `e${b.fighters.length}_${Math.random()}`, sheet: d.sheet, x: W + 30, y, baseX: W + 30, hp: Math.round(d.hp * m), maxHp: Math.round(d.hp * m), atk: d.atk * (1 + (m - 1) * 0.75), cd: d.cd,
+        team: 'e', key: `e${b.fighters.length}_${Math.random()}`, sheet: d.sheet, x: W + 30, y, baseX: W + 30, hp: Math.round(d.hp * m), maxHp: Math.round(d.hp * m), atk: d.atk * (1 + (m - 1) * 0.6), cd: d.cd,
         range: d.range, speed: d.speed, px: d.px, face: -1, state: 'move', t: 0, fired: false, cdLeft: 400, target: null, flying: d.flying, boss: d.boss, hue: d.hue, dead: false, fade: 1, hitT: 0, name: d.name,
     });
 }
