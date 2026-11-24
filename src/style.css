@@ -230,3 +230,15 @@ body { background: #120c1a; }
 .sb-mini { height: 24px; font: inherit; font-size: 11px; border: 1px solid #8a6a3a; background: #e8d9ad; color: #3a2a12; border-radius: 4px; padding: 0; cursor: pointer; }
 .sb-mini.on { background: #2b6fd6; color: #fff; border-color: #1c4ea0; }
 .sb-mini:disabled { opacity: .45; cursor: default; }
+
+.sb-cell { position: relative; }
+.sb-rar { position: absolute; left: 0; right: 0; bottom: 0; height: 5px; }
+.sb-cell.win { border-color: #e9a41f; border-width: 3px; }
+.sb-cell.jp { border-color: #c230a0; }
+.sb-info { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+.sb-info .sb-acts { width: 100%; }
+.sb-info .sb-btn.sm { width: 100%; min-height: 38px; height: auto; padding: 4px 10px; flex-direction: row; gap: 8px; justify-content: space-between; text-align: left; }
+.sb-info .sb-fnote { color: #c9a35a; margin: 0; }
+.sb-result { padding: 10px 14px; box-sizing: border-box; text-align: center; }
+.sb-result small { display: block; max-width: 100%; text-align: center; line-height: 1.5; word-break: keep-all; overflow-wrap: anywhere; font-size: 12px; }
+@media (max-width:480px){ .sb-result { font-size: 28px; padding: 8px 10px; } .sb-result small { font-size: 11px; } }

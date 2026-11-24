@@ -6,7 +6,31 @@ export const RARITY_NAME = ['일반', '희귀', '영웅'];
 export const RARITY_MULT = [1, 1.35, 1.8];
 export const RARITY_COLOR = ['#8a8a8a', '#3b7dd8', '#c9892b'];
 export const MAX_LV = 3, MAX_ENH = 5;
-export function unitMult(u: { rarity: Rarity; lv: number; enh: number }) { return RARITY_MULT[u.rarity] * (1 + 0.6 * (u.lv - 1)) * (1 + 0.08 * u.enh); }
+export function unitMult(u: { rarity: Rarity; lv: number; enh: number; abs?: number }) { return RARITY_MULT[u.rarity] * (1 + 0.6 * (u.lv - 1)) * (1 + 0.08 * u.enh) * (1 + 0.015 * ((u.abs || 1) - 1)); }
+// 별 성장: 흡수 레벨(Absorb LV) 기준. 구간 수치는 비공식 팬위키 서술(slotbound.net, wikily.gg, 서로 같은 말이라 독립 확인 아님)을 임시 채택. 우리 설계 취급.
+export const STAR_AT: number[][] = [[5, 12], [6, 14], [8, 18]];
+export const IMP_SLOTS = [1, 2, 3];
+export function starOf(rarity: number, abs: number) { const t = STAR_AT[rarity]; return abs >= t[1] ? 3 : abs >= t[0] ? 2 : 1; }
+export function absFromStar(rarity: number, lv: number) { return lv >= 3 ? STAR_AT[rarity][1] : lv === 2 ? STAR_AT[rarity][0] : 1; }
+// ---- 승급·각인 (원작: 분기 승급과 흡수 각인의 존재만 영상 확인. 아래 이름과 수치는 모두 우리 설계, 임시) ----
+export const MAX_ENG = 3;
+export const ENGRAVINGS = [
+    { id: 'tough', name: '강인', desc: '체력 +12%/단계', from: '전열' },
+    { id: 'fury', name: '격투', desc: '공격 +10%/단계', from: '딜러' },
+    { id: 'rapid', name: '속사', desc: '공격 간격 -8%/단계', from: '원거리' },
+    { id: 'mend', name: '수호', desc: '체력 +8%, 치유 +15%/단계', from: '지원' },
+];
+export const PROMOS: Record<string, [string, string]> = { '전열': ['수호기사', '돌격기사'], '딜러': ['권왕', '연격수'], '원거리': ['저격수', '속사수'], '지원': ['대사제', '비전사'] };
+export const PROMO_DESC = ['체력 +45%, 공격 -5%', '공격 +40%, 체력 -5%'];
+export function engIndexOf(role: string) { return ENGRAVINGS.findIndex((e) => e.from === role); }
+export function unitMods(u: { eng?: number[]; promo?: number }) {
+    const e = u.eng || [0, 0, 0, 0]; let hp = 1 + 0.12 * e[0] + 0.08 * e[3], atk = 1 + 0.1 * e[1], cd = Math.max(0.6, 1 - 0.08 * e[2]), heal = 1 + 0.15 * e[3];
+    if (u.promo === 1) { hp *= 1.45; atk *= 0.95; } else if (u.promo === 2) { atk *= 1.4; hp *= 0.95; }
+    return { hp, atk, cd, heal };
+}
+export function unitHp(u: Unit) { return Math.round(u.def.hp * unitMult(u) * unitMods(u).hp); }
+export function unitAtk(u: Unit) { return Math.round(u.def.atk * unitMult(u) * unitMods(u).atk); }
+export function unitHeal(u: Unit) { return u.def.heal ? Math.round(u.def.heal * unitMult(u) * unitMods(u).heal) : 0; }
 export function enhCost(u: { enh: number }) { return 2 + u.enh * 2; }
 export function shardValue(u: { rarity: Rarity; lv: number }) { return [1, 2, 4][u.rarity] * u.lv; }
 export const LV_HUE = [0, 0, 55, 130];
@@ -94,7 +118,7 @@ export function buildStage(region: RegionDef, index: number): StageDef {
 
 // ---------- runtime ----------
 export interface Unit {
-    uid: number; def: UnitDef; rarity: Rarity; cell: number; lv: number; enh: number;
+    uid: number; def: UnitDef; rarity: Rarity; cell: number; lv: number; enh: number; promo?: number; eng?: number[]; abs?: number;
 }
 
 export interface Fighter {
@@ -108,10 +132,11 @@ export interface Proj { x: number; y: number; target: Fighter; dmg: number; kind
 export interface Float { x: number; y: number; text: string; color: string; t: number; }
 export interface Battle {
     fighters: Fighter[]; projs: Proj[]; floats: Float[]; time: number; spawned: number; stage: StageDef;
-    result: null | 'win' | 'lose'; kills: number; total: number; rewarded?: boolean;
+    result: null | 'win' | 'lose'; camp?: boolean; kills: number; total: number; rewarded?: boolean;
     events?: { k: 'hit' | 'death' | 'boss' | 'heal'; x: number; y: number; flip: boolean }[];
 }
 
+export const MAX_UNITS = 8; // 우리 설계(임시): 동시 출전 상한
 export const W = 360, H = 250;
 export const CELL_X = [42, 94, 146];
 export const CELL_Y = [150, 184, 218];
@@ -124,18 +149,55 @@ export function synergy(units: Unit[]) {
 }
 export function synergyBonus(count: number) { return count >= 3 ? 0.25 : count >= 2 ? 0.1 : 0; }
 
-export function startBattle(board: Unit[], stage: StageDef): Battle {
-    const syn = synergy(board);
-    const fighters: Fighter[] = board.map((u) => {
-        const m = unitMult(u) * (1 + synergyBonus(syn[u.def.role] || 0));
-        const p = cellPos(u.cell);
+const ROLE_SPEED: Record<string, number> = { '전열': 52, '딜러': 46, '원거리': 38, '지원': 34 };
+export interface CoreDef { id: string; name: string; desc: string; orig?: boolean; }
+// 코어: 우리 설계(임시). 필드 조합(역할 수, 역할 종류 수, 유닛 수)에 반응해 효과가 커진다.
+export const CORES: CoreDef[] = [
+    { id: 'duo', name: '쌍줄 코어', desc: '2줄 이상 당첨하면 당첨 유닛 1기 추가 소환', orig: true },
+    { id: 'quad', name: '다중 심볼 코어', desc: '당첨 심볼이 4개 이상이면 그 유닛 1기 추가 소환', orig: true },
+    { id: 'tri', name: '삼연 코어', desc: '3줄 이상 당첨하면 코인 +3' },
+    { id: 'wall', name: '철벽 코어', desc: '전열 체력 +8% x 필드 전열 수' },
+    { id: 'rage', name: '연격 코어', desc: '딜러 공격 +8% x 필드 딜러 수' },
+    { id: 'aim', name: '조준 코어', desc: '원거리 공격 +8% x 필드 원거리 수' },
+    { id: 'bless', name: '축복 코어', desc: '지원 치유 +10% x 지원 수, 전원 체력 +3% x 지원 수' },
+    { id: 'mix', name: '혼성 코어', desc: '필드 역할 종류 수 x 4% 전원 공격' },
+    { id: 'crowd', name: '군집 코어', desc: '필드 유닛 수 x 2% 전원 체력' },
+    { id: 'twin', name: '쌍둥이 코어', desc: '같은 유닛이 2기 이상이면 그 유닛 공격 +12%' },
+    { id: 'purse', name: '전리품 코어', desc: '승리 코인 +25%' },
+];
+export const MAX_CORES = 6;
+export function rollCores(have: string[]): CoreDef[] {
+    const pool = CORES.filter((c) => !have.includes(c.id)); const out: CoreDef[] = [];
+    while (out.length < 3 && pool.length) out.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+    return out;
+}
+export function coreMods(cores: string[], list: Unit[], u: Unit) {
+    const cnt = (r: string) => list.filter((x) => x.def.role === r).length;
+    const roles = new Set(list.map((x) => x.def.role)).size;
+    let hp = 1, atk = 1, heal = 1;
+    for (const c of cores) {
+        if (c === 'wall' && u.def.role === '전열') hp *= 1 + 0.08 * cnt('전열');
+        else if (c === 'rage' && u.def.role === '딜러') atk *= 1 + 0.08 * cnt('딜러');
+        else if (c === 'aim' && u.def.role === '원거리') atk *= 1 + 0.08 * cnt('원거리');
+        else if (c === 'bless') { if (u.def.role === '지원') heal *= 1 + 0.1 * cnt('지원'); hp *= 1 + 0.03 * cnt('지원'); }
+        else if (c === 'mix') atk *= 1 + 0.04 * roles;
+        else if (c === 'crowd') hp *= 1 + 0.02 * list.length;
+        else if (c === 'twin' && list.filter((x) => x.def.id === u.def.id).length >= 2) atk *= 1.12;
+    }
+    return { hp, atk, heal };
+}
+export function startBattle(board: Unit[], stage: StageDef, camp = false, cores: string[] = []): Battle {
+    const list = board.slice(0, MAX_UNITS);
+    const fighters: Fighter[] = list.map((u, i) => {
+        const m = unitMult(u); const md0 = unitMods(u); const cm = coreMods(cores, list, u); const md = { ...md0, hp: md0.hp * cm.hp, atk: md0.atk * cm.atk, heal: md0.heal * cm.heal };
+        const x = 24 + Math.floor(i / 3) * 32 + (i % 3 === 1 ? 14 : 0); const y = CELL_Y[i % 3];
         return {
-            team: 'a', key: `a${u.uid}`, sheet: u.def.sheet, x: p.x, y: p.y, baseX: p.x, hp: Math.round(u.def.hp * m), maxHp: Math.round(u.def.hp * m), atk: u.def.atk * m, cd: u.def.cd, range: u.def.range,
-            speed: 0, px: u.def.px, face: 1, state: 'idle', t: Math.random() * 600, fired: false, cdLeft: 300 + Math.random() * 400, target: null, ranged: u.def.ranged, heal: u.def.heal ? u.def.heal * m : undefined,
+            team: 'a', key: `a${u.uid}`, sheet: u.def.sheet, x, y, baseX: x, hp: Math.round(u.def.hp * m * md.hp), maxHp: Math.round(u.def.hp * m * md.hp), atk: u.def.atk * m * md.atk, cd: u.def.cd * md.cd, range: u.def.range,
+            speed: ROLE_SPEED[u.def.role] || 40, px: u.def.px, face: 1, state: 'idle', t: Math.random() * 600, fired: false, cdLeft: 300 + Math.random() * 400, target: null, ranged: u.def.ranged, heal: u.def.heal ? u.def.heal * m * md.heal : undefined,
             dead: false, fade: 1, hitT: 0, role: u.def.role, name: u.def.name, lv: u.lv,
         };
     });
-    return { fighters, projs: [], floats: [], time: 0, spawned: 0, stage, result: null, kills: 0, total: stage.spawns.length };
+    return { fighters, projs: [], floats: [], time: 0, spawned: 0, stage, result: null, kills: 0, total: stage.spawns.length, camp };
 }
 
 function spawnEnemy(b: Battle, id: string) {
@@ -165,7 +227,7 @@ export function step(b: Battle, dt: number) {
     if (b.result) { b.time += dt; b.fighters.forEach((f) => { f.t += dt; }); return; }
     b.time += dt;
     const sp = b.stage.spawns;
-    while (b.spawned < sp.length && sp[b.spawned].at <= b.time) { spawnEnemy(b, sp[b.spawned].id); b.spawned++; }
+    while (!b.camp && b.spawned < sp.length && sp[b.spawned].at <= b.time) { spawnEnemy(b, sp[b.spawned].id); b.spawned++; }
     const allies = b.fighters.filter((f) => f.team === 'a' && !f.dead);
     const enemies = b.fighters.filter((f) => f.team === 'e' && !f.dead);
     for (const f of b.fighters) {
@@ -194,16 +256,42 @@ export function step(b: Battle, dt: number) {
             continue;
         }
         f.cdLeft -= dt;
-        const reach = (o: Fighter) => Math.abs(o.x - f.x) <= f.range + 6;
+        const dyOk = (o: Fighter, tol: number) => Math.abs(o.y - f.y) <= tol;
+        const reach = (o: Fighter) => Math.abs(o.x - f.x) <= f.range + 6 && dyOk(o, 40);
         const canHeal = f.heal && allies.some((a) => a.hp / a.maxHp < 0.85);
+        const goto = (tx: number, ty: number, vx: number) => {
+            const dx = tx - f.x, dy = ty - f.y; const sx = (vx * dt) / 1000;
+            if (Math.abs(dx) > 1) f.x += Math.sign(dx) * Math.min(Math.abs(dx), sx);
+            if (Math.abs(dy) > 1) f.y += Math.sign(dy) * Math.min(Math.abs(dy), sx * 0.6);
+            f.y = Math.max(CELL_Y[0] - 14, Math.min(CELL_Y[2] + 8, f.y));
+        };
         if (f.team === 'a') {
             if ((tgt && reach(tgt)) || canHeal) { if (f.cdLeft <= 0) { f.state = 'atk'; f.t = 0; f.fired = false; } else if (f.state !== 'idle') { f.state = 'idle'; } }
+            else if (tgt) {
+                // 이동: 근접은 사거리까지 접근, 원거리/지원은 사거리 80% 지점까지. 지원은 전위보다 앞서지 않음
+                let tx = tgt.x + (f.range * 0.8) * (tgt.x >= f.x ? -1 : 1); if (!f.ranged && !f.heal) tx = tgt.x - 14;
+                if (f.role === '지원') { const front = allies.filter((a) => a.role !== '지원').reduce((m, a) => Math.max(m, a.x), 0); if (front) tx = Math.min(tx, front - 16); }
+                if (Math.abs(tx - f.x) > 2 || !dyOk(tgt, 24)) { f.state = 'move'; goto(tx, tgt.y, f.speed); } else if (f.state === 'move') f.state = 'idle';
+            } else if (f.state === 'move') f.state = 'idle';
         } else {
-            if (tgt && Math.abs(tgt.x - f.x) <= f.range) {
+            if (tgt && Math.abs(tgt.x - f.x) <= f.range && dyOk(tgt, 30)) {
                 if (f.cdLeft <= 0) { f.state = 'atk'; f.t = 0; f.fired = false; } else f.state = 'idle';
-            } else { f.state = 'move'; f.x -= (f.speed * dt) / 1000; }
+            } else if (tgt) { f.state = 'move'; goto(tgt.x + f.range * 0.9, tgt.y, f.speed); }
+            else { f.state = 'move'; f.x -= (f.speed * dt) / 1000; }
         }
     }
+    // 겹침 완화: 같은 편끼리 밀어내고 화면 가장자리 안으로
+    const alive = b.fighters.filter((f) => !f.dead);
+    for (let i = 0; i < alive.length; i++) for (let j = i + 1; j < alive.length; j++) {
+        const p = alive[i], q = alive[j]; if (p.team !== q.team) continue;
+        const dx = q.x - p.x, dy = q.y - p.y;
+        if (Math.abs(dx) < 24 && Math.abs(dy) < 14) {
+            const sx = dx === 0 ? (i % 2 ? 1 : -1) : Math.sign(dx), sy = dy === 0 ? (j % 2 ? 1 : -1) : Math.sign(dy);
+            const px = (24 - Math.abs(dx)) * 0.1 * (dt / 16), py = (14 - Math.abs(dy)) * 0.14 * (dt / 16);
+            p.x -= sx * px; q.x += sx * px; p.y -= sy * py; q.y += sy * py;
+        }
+    }
+    for (const f of alive) { f.x = Math.max(24, Math.min(W - 26, f.x)); f.y = Math.max(CELL_Y[0] - 14, Math.min(CELL_Y[2] + 8, f.y)); }
     // projectiles
     for (const p of b.projs) {
         const tx = p.target.x, ty = p.target.y - p.target.px * 0.5;
@@ -217,11 +305,12 @@ export function step(b: Battle, dt: number) {
     // end checks
     const aliveE = b.fighters.some((f) => f.team === 'e' && !f.dead);
     const aliveA = b.fighters.some((f) => f.team === 'a' && !f.dead);
-    if (!aliveA) b.result = 'lose';
+    if (b.camp) { /* 야영: 결과 없음 */ }
+    else if (!aliveA) b.result = 'lose';
     else if (b.spawned >= sp.length && !aliveE) b.result = 'win';
     if (aliveA === true) {
         // enemies that walked past the left edge hit the base: treat as reaching allies; clamp
-        for (const f of b.fighters) if (f.team === 'e' && !f.dead && f.x < 20) f.x = 20;
+        for (const f of b.fighters) if (!f.dead && f.x < 24) f.x = 24;
     }
 }
 
@@ -258,7 +347,7 @@ export function drawHpBar(ctx: CanvasRenderingContext2D, f: Fighter) {
     const ally = f.team === 'a'; const r = Math.max(0, Math.min(1, f.hp / f.maxHp));
     f.trail = f.trail === undefined ? f.hp : Math.max(f.hp, f.trail - f.maxHp * 0.01);
     const tr = Math.max(0, Math.min(1, f.trail / f.maxHp));
-    const w = f.boss ? 56 : 32, h = 5; const hx = Math.round(f.x - w / 2), hy = Math.round(f.y - f.px - 12);
+    const w = f.boss ? 56 : 26, h = 5; const hx = Math.round(f.x - w / 2), hy = Math.round(f.y - f.px - 12);
     ctx.fillStyle = '#0b0b0f'; ctx.fillRect(hx - 1, hy - 1, w + 2, h + 2);
     ctx.fillStyle = ally ? '#2a3b2c' : '#3b2424'; ctx.fillRect(hx, hy, w, h);
     if (tr > r) { ctx.fillStyle = '#f4f0e0'; ctx.fillRect(hx, hy, Math.round(w * tr), h); }
@@ -295,11 +384,6 @@ export function drawBattle(ctx: CanvasRenderingContext2D, b: Battle | null, boar
         ctx.fillStyle = '#16221a'; for (let i = 0; i < 9; i++) { const x = i * 58 - 10; ctx.fillRect(x, 40 + (i % 3) * 10, 14, 110); ctx.beginPath(); ctx.arc(x + 7, 40 + (i % 3) * 10, 32, 0, 7); ctx.fill(); }
         ctx.fillStyle = '#2b3a22'; ctx.fillRect(0, 138, W, H - 138);
         ctx.fillStyle = '#3a4a2c'; ctx.fillRect(0, 138, W, 4);
-    }
-    // grid cells
-    for (let c = 0; c < 9; c++) {
-        const p = cellPos(c); ctx.strokeStyle = selectedCell === c ? '#ffe28a' : 'rgba(255,255,255,0.22)'; ctx.lineWidth = selectedCell === c ? 2 : 1;
-        ctx.strokeRect(p.x - 22, p.y - 12, 44, 18);
     }
     const list: { y: number; draw: () => void }[] = [];
     if (!b) {
@@ -412,18 +496,42 @@ export function optimizeFormation(units: Unit[], stage: StageDef, runs = 8, max 
     return { cells: best ? best.cells : new Map(), picked: best ? best.cells.size : 0, candidates: top.length, winRate: best ? best.win : 0, hpLeft: best ? best.hp : 0, stageLabel: stage.label };
 }
 
-// ---------- 3x3 슬롯 줄 판정 (우리 설계: 원작 규칙 아님) ----------
+// ---------- 3x3 슬롯 줄 판정 (우리 설계 + 원작 방향: 한 줄 동일 아이콘 3개 = 소환) ----------
 export const GRID_LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
-export interface GridCell { u: number; r: 0 | 1 | 2 }
-export interface GridWin { cells: number[]; kind: 'jackpot' | 'role' }
-export function evalGrid(g: GridCell[]): { wins: GridWin[]; summons: GridCell[] } {
-    const wins: GridWin[] = []; const summons: GridCell[] = [];
-    for (const l of GRID_LINES) {
-        const [a, b, c] = l.map((i) => g[i]);
-        if (a.u === b.u && b.u === c.u) { wins.push({ cells: l, kind: 'jackpot' }); summons.push(a, b, c); }
-        else if (ALLIES[a.u].role === ALLIES[b.u].role && ALLIES[b.u].role === ALLIES[c.u].role) { wins.push({ cells: l, kind: 'role' }); summons.push(a, b); }
-    }
-    if (!wins.length) summons.push(g[4], g[3]);
-    return { wins, summons };
+export const SPECIAL = 6; // 특수 아이콘(조각 ◆): 일반 매치에 끼지 않음. 3줄 = 강화조각 보상
+export const SYMBOLS: { id: string; name: string; group: number[] }[] = [
+    { id: 'sword', name: '검', group: [1, 5, 7, 10] },
+    { id: 'shield', name: '방패', group: [0, 6, 8, 9] },
+    { id: 'fist', name: '주먹', group: [2, 11, 12] },
+    { id: 'bow', name: '활', group: [3, 13] },
+    { id: 'staff', name: '지팡이', group: [14, 15] },
+    { id: 'cross', name: '십자', group: [4] },
+    { id: 'gem', name: '조각', group: [] },
+];
+const SYM_W = [58, 56, 46, 30, 20, 14]; const SPECIAL_P = 0.06;
+export const LINE_SUMMON = 3; export const SPECIAL_SHARDS = 10;
+export interface GridCell { u: number }
+export interface GridWin { cells: number[]; kind: 'line' | 'special' }
+export function rollCell(): GridCell {
+    if (Math.random() < SPECIAL_P) return { u: SPECIAL };
+    const tot = SYM_W.reduce((a, b) => a + b, 0); let r = Math.random() * tot;
+    for (let i = 0; i < SYM_W.length; i++) { r -= SYM_W[i]; if (r <= 0) return { u: i }; }
+    return { u: 0 };
 }
-export function rollCell(): GridCell { return { u: ALLIES.indexOf(rollUnit()), r: rollRarity() }; }
+export function evalGrid(g: GridCell[]): { wins: GridWin[]; units: number; shards: number } {
+    const wins: GridWin[] = []; let units = 0; let shards = 0;
+    for (const l of GRID_LINES) {
+        const [a, b, c] = l.map((i) => g[i].u);
+        if (a === b && b === c) {
+            if (a === SPECIAL) { wins.push({ cells: l, kind: 'special' }); shards += SPECIAL_SHARDS; }
+            else { wins.push({ cells: l, kind: 'line' }); units += LINE_SUMMON; }
+        }
+    }
+    return { wins, units, shards };
+}
+const UNIT_W = [24, 22, 22, 18, 14, 12, 12, 12, 10, 10, 12, 12, 12, 12, 10, 10];
+export function rollSymbolUnit(sym: number): { def: UnitDef; r: Rarity } {
+    const grp = SYMBOLS[sym].group; const tot = grp.reduce((a, i) => a + UNIT_W[i], 0); let r = Math.random() * tot; let pick = grp[0];
+    for (const i of grp) { r -= UNIT_W[i]; if (r <= 0) { pick = i; break; } }
+    return { def: ALLIES[pick], r: rollRarity() };
+}
