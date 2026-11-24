@@ -275,7 +275,7 @@ export function drawBossBar(ctx: CanvasRenderingContext2D, b: Battle) {
     ctx.fillStyle = '#f4f0e0'; ctx.fillRect(x, y, Math.round(w * tr), h);
     ctx.fillStyle = '#d6402e'; ctx.fillRect(x, y, Math.round(w * r), h);
     ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(x, y, Math.round(w * r), 2);
-    ctx.font = '8px Galmuri11, monospace'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.fillText(`BOSS ${Math.ceil(r * 100)}%`, 180, y + h + 10); ctx.textAlign = 'left';
+    ctx.font = 'bold 11px Galmuri11, monospace'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = '#000'; ctx.lineJoin = 'round'; const tx = `BOSS ${Math.ceil(r * 100)}%`; ctx.strokeText(tx, 180, y + h + 13); ctx.fillStyle = '#fff'; ctx.fillText(tx, 180, y + h + 13); ctx.textAlign = 'left'; ctx.lineWidth = 1;
 }
 
 export function drawBattle(ctx: CanvasRenderingContext2D, b: Battle | null, board: Unit[], bgs: Record<string, HTMLImageElement>, regionBg: string, selectedCell: number | null) {
