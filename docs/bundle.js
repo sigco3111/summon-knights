@@ -26947,8 +26947,11 @@
     ctx.imageSmoothingEnabled = false;
     const bg = bgs[regionBg];
     if (bg && bg.naturalWidth) {
-      const sc = H / bg.naturalHeight;
-      ctx.drawImage(bg, 0, 0, bg.naturalWidth, bg.naturalHeight, -40, 0, bg.naturalWidth * sc, H);
+      const sc = Math.max((W + 80) / bg.naturalWidth, H / bg.naturalHeight);
+      const dw = bg.naturalWidth * sc, dh = bg.naturalHeight * sc;
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(bg, (W - dw) / 2, (H - dh) / 2, dw, dh);
+      ctx.imageSmoothingEnabled = false;
       ctx.fillStyle = "rgba(10,10,20,0.15)";
       ctx.fillRect(0, 0, W, H);
     } else {
