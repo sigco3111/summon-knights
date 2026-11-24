@@ -52,7 +52,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     rat: { id: 'rat', sheet: 'rat', name: 'Rat', hp: 35, atk: 6, cd: 700, speed: 52, range: 30, px: 30, face: 1 },
     slime: { id: 'slime', sheet: 'slime', name: 'Slime', hp: 130, atk: 10, cd: 1600, speed: 16, range: 30, px: 34, face: 1 },
     bat: { id: 'bat', sheet: 'bat', name: 'Bat', hp: 38, atk: 7, cd: 800, speed: 44, range: 30, px: 30, flying: true, face: 1 },
-    mimic: { id: 'mimic', sheet: 'mimic', name: 'Mimic', hp: 420, atk: 22, cd: 1200, speed: 10, range: 40, px: 44, face: 1 },
+    mimic: { id: 'mimic', sheet: 'mimic', name: 'Mimic', hp: 420, atk: 22, cd: 1200, speed: 10, range: 40, px: 18, face: 1 },
     bogWorm: { id: 'bogWorm', sheet: 'dsl', name: 'Demon Slime', hp: 1400, atk: 40, cd: 1500, speed: 14, range: 46, px: 92, boss: true, face: 1 },
     frostWorm: { id: 'frostWorm', sheet: 'fgd', name: 'Frost Guardian', hp: 1700, atk: 46, cd: 1500, speed: 14, range: 46, px: 84, boss: true, face: 1 },
     abyssWizard: { id: 'abyssWizard', sheet: 'cth', name: 'Cthulhu', hp: 2100, atk: 54, cd: 1450, speed: 18, range: 60, px: 80, boss: true, face: 1 },
@@ -237,7 +237,7 @@ export function sheetFor(sheet: string, anim: string): { img: HTMLImageElement; 
     return { img, frames: Math.max(1, Math.round(iw / m.fw)) };
 }
 
-export function drawSprite(ctx: CanvasRenderingContext2D, sheet: string, anim: string, t: number, x: number, y: number, px: number, flip: boolean, loop: boolean, alpha = 1, tint = 0, hue = 0) {
+export function drawSprite(ctx: CanvasRenderingContext2D, sheet: string, anim: string, t: number, x: number, y: number, px: number, flip: boolean, loop: boolean, alpha = 1, tint = 0, hue = 0, shadow = false) {
     const sf = sheetFor(sheet, anim); if (!sf) return;
     const m = META[sheet]; const scale = px / m.h;
     const fps = anim === 'idle' ? 8 : anim === 'die' ? 9 : 14;
@@ -246,6 +246,7 @@ export function drawSprite(ctx: CanvasRenderingContext2D, sheet: string, anim: s
     if (anim === 'atk') f = Math.min(sf.frames - 1, Math.floor((t / ATK_MS) * sf.frames));
     if (anim === 'hit') f = Math.min(sf.frames - 1, Math.floor((t / HIT_MS) * sf.frames));
     ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y); if (flip) ctx.scale(-1, 1);
+    if (shadow) { ctx.save(); ctx.globalAlpha = alpha * 0.32; ctx.fillStyle = '#000'; ctx.beginPath(); ctx.ellipse(0, -1, px * 0.30, Math.max(2, px * 0.09), 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
     if (hue) ctx.filter = `hue-rotate(${hue}deg) saturate(1.25)`;
     ctx.drawImage(sf.img, f * m.fw, 0, m.fw, m.fh, -m.cx * scale, -m.fy * scale, m.fw * scale, m.fh * scale);
     if (tint > 0) { ctx.globalCompositeOperation = 'source-atop'; ctx.fillStyle = `rgba(255,255,255,${tint})`; ctx.fillRect(-m.cx * scale, -m.fy * scale, m.fw * scale, m.fh * scale); }
@@ -277,14 +278,14 @@ export function drawBattle(ctx: CanvasRenderingContext2D, b: Battle | null, boar
     }
     const list: { y: number; draw: () => void }[] = [];
     if (!b) {
-        board.forEach((u) => { const p = cellPos(u.cell); list.push({ y: p.y, draw: () => { drawLvAura(ctx, p.x, p.y, u.lv); drawSprite(ctx, u.def.sheet, 'idle', performance.now(), p.x, p.y, u.def.px * (1 + 0.06 * (u.lv - 1)), false, true, 1, 0, LV_HUE[u.lv]); drawRarity(ctx, p.x, p.y, u.rarity, u.lv); } }); });
+        board.forEach((u) => { const p = cellPos(u.cell); list.push({ y: p.y, draw: () => { drawLvAura(ctx, p.x, p.y, u.lv); drawSprite(ctx, u.def.sheet, 'idle', performance.now(), p.x, p.y, u.def.px * (1 + 0.06 * (u.lv - 1)), false, true, 1, 0, LV_HUE[u.lv], true); drawRarity(ctx, p.x, p.y, u.rarity, u.lv); } }); });
     } else {
         for (const f of b.fighters) {
             list.push({ y: f.y, draw: () => {
                 const anim = f.state === 'move' ? 'move' : f.state;
                 const loop = f.state === 'idle' || f.state === 'move';
                 if (f.team === 'a') drawLvAura(ctx, f.x, f.y, f.lv || 1);
-                drawSprite(ctx, f.sheet, anim, f.t, f.x, f.y, f.px * (f.team === 'a' ? 1 + 0.06 * ((f.lv || 1) - 1) : 1), f.team === 'e', loop, f.dead ? f.fade : 1, 0, f.team === 'a' ? LV_HUE[f.lv || 1] : (f.hue || 0));
+                drawSprite(ctx, f.sheet, anim, f.t, f.x, f.y, f.px * (f.team === 'a' ? 1 + 0.06 * ((f.lv || 1) - 1) : 1), f.team === 'e', loop, f.dead ? f.fade : 1, 0, f.team === 'a' ? LV_HUE[f.lv || 1] : (f.hue || 0), true);
                 if (!f.dead) {
                     const w = f.boss ? 50 : 30; const hx = f.x - w / 2; const hy = f.y - f.px - 10;
                     ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(hx - 1, hy - 1, w + 2, 5);
