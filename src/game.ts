@@ -118,7 +118,7 @@ export function buildStage(region: RegionDef, index: number): StageDef {
 
 // ---------- runtime ----------
 export interface Unit {
-    uid: number; def: UnitDef; rarity: Rarity; cell: number; lv: number; enh: number; promo?: number; eng?: number[]; abs?: number;
+    uid: number; def: UnitDef; rarity: Rarity; cell: number; lv: number; enh: number; promo?: number; eng?: number[]; abs?: number; off?: boolean;
 }
 
 export interface Fighter {
@@ -136,6 +136,7 @@ export interface Battle {
     events?: { k: 'hit' | 'death' | 'boss' | 'heal'; x: number; y: number; flip: boolean }[];
 }
 
+export const MAX_ROSTER = 30; // 우리 설계(임시): 보유 상한(대기 포함)
 export const MAX_UNITS = 8; // 우리 설계(임시): 동시 출전 상한
 export const W = 360, H = 250;
 export const CELL_X = [42, 94, 146];

@@ -242,3 +242,6 @@ body { background: #120c1a; }
 .sb-result { padding: 10px 14px; box-sizing: border-box; text-align: center; }
 .sb-result small { display: block; max-width: 100%; text-align: center; line-height: 1.5; word-break: keep-all; overflow-wrap: anywhere; font-size: 12px; }
 @media (max-width:480px){ .sb-result { font-size: 28px; padding: 8px 10px; } .sb-result small { font-size: 11px; } }
+
+.sb-unit.is-off { opacity: .55; filter: grayscale(.6); }
+.sb-unit.is-off small { color: #e8b64c; }
