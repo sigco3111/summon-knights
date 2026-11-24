@@ -215,3 +215,18 @@ body { background: #120c1a; }
 .sb-fcell.warn{border-color:#b3402a;background:#ffe3d6}.sb-warn{font-style:normal;font-size:10px;color:#a52a14;font-weight:bold}.sb-fnote{font-size:11px;line-height:15px;color:#5e4826;margin:2px 0 6px}
 
 @media (max-width:480px){.sb-fnote{font-size:10px;line-height:13px;margin:0 0 4px}.sb-warn{font-size:9px}}
+
+.sb-bar .sb-btn.on { background: #d9a441; color: #2a1a08; }
+
+.sb-gridwrap { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.sb-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; }
+.sb-cell { height: 40px; display: flex; align-items: center; justify-content: center; background: #efe3bd; border: 2px solid #8a6a3a; border-radius: 4px; overflow: hidden; }
+.sb-cell .sb-icon { width: 100%; height: 100%; object-fit: contain; display: block; image-rendering: pixelated; }
+.sb-cell.win { background: #fbe9a6; box-shadow: inset 0 0 0 2px #e9a41f; }
+.sb-cell.jp { background: #ffd1f0; box-shadow: inset 0 0 0 2px #c230a0; }
+.sb-cell.held { outline: 2px solid #2b6fd6; outline-offset: -2px; }
+.sb-grid.flash .sb-cell { animation: sbReelFlash 900ms; }
+.sb-gridctl { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; }
+.sb-mini { height: 24px; font: inherit; font-size: 11px; border: 1px solid #8a6a3a; background: #e8d9ad; color: #3a2a12; border-radius: 4px; padding: 0; cursor: pointer; }
+.sb-mini.on { background: #2b6fd6; color: #fff; border-color: #1c4ea0; }
+.sb-mini:disabled { opacity: .45; cursor: default; }

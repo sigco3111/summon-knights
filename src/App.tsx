@@ -15,10 +15,11 @@ const BG_SRC: Record<string, string> = { grotto, forest: bgforest, canopy: bgcan
 import {
     ALLIES, REGIONS, RARITY_NAME, RARITY_COLOR, STAGES_PER_REGION, W, H, MAX_LV, MAX_ENH, buildStage, cellPos, drawBattle, drawSprite, iconDraw, allUrls, registerImg,
     rollRarity, rollUnit, startBattle, step, synergy, synergyBonus, unitMult, enhCost, shardValue, type Battle, type Unit,
-  assignCells, optimizeFormation, unitPower, CELL_X,
+  assignCells, optimizeFormation, unitPower, CELL_X, evalGrid, rollCell, type GridCell,
 } from './game';
 
 const SUMMON_COST = 3;
+const REROLL_COST = 1;
 const MAX_BOARD = 6;
 let uidSeq = 1;
 const ROLES = ['전열', '딜러', '원거리', '지원'] as const;
@@ -27,61 +28,6 @@ function Icon({ sheet, ready, lv = 1 }: { sheet: string; ready: boolean; lv?: nu
     const ref = useRef<HTMLCanvasElement>(null);
     useEffect(() => { if (ref.current && ready) iconDraw(ref.current, sheet, 38); }, [sheet, ready, lv]);
     return <canvas ref={ref} width={52} height={46} className="sb-icon" />;
-}
-
-const REEL_SLOT = 64;
-function drawReelFrame(ctx: CanvasRenderingContext2D, pos: number, smear: number, w: number, h: number) {
-    const L = ALLIES.length * REEL_SLOT;
-    ctx.clearRect(0, 0, w, h);
-    for (let i = 0; i < ALLIES.length; i++) {
-        const y = (((i * REEL_SLOT + pos) % L) + L) % L - REEL_SLOT;
-        if (y > h || y < -REEL_SLOT) continue;
-        const cx = w / 2;
-        if (smear > 0) { ctx.globalAlpha = 0.3; drawSprite(ctx, ALLIES[i].sheet, 'idle', 0, cx, y - smear + REEL_SLOT - 6, 44, false, true); ctx.globalAlpha = 1; }
-        drawSprite(ctx, ALLIES[i].sheet, 'idle', 0, cx, y + REEL_SLOT - 6, 44, false, true);
-    }
-}
-
-function Reel({ idx, spin, prev, ready, onStop }: { idx: number; spin: { targets: number[] } | null; prev: number | null; ready: boolean; onStop: (i: number) => void }) {
-    const ref = useRef<HTMLCanvasElement>(null);
-    useEffect(() => {
-        const cvs = ref.current; if (!cvs || !ready) return;
-        const ctx = cvs.getContext('2d'); if (!ctx) return;
-        ctx.imageSmoothingEnabled = false;
-        const L = ALLIES.length * REEL_SLOT;
-        if (!spin) { drawReelFrame(ctx, prev === null ? 0 : (L - prev * REEL_SLOT) % L, 0, cvs.width, cvs.height); return; }
-        const target = spin.targets[idx];
-        const stopStart = 1000 + idx * 550, DECEL = 800;
-        let pos = prev === null ? 0 : (L - prev * REEL_SLOT) % L;
-        let raf = 0, last = performance.now(), done = false;
-        let posS: number | null = null, distS = 0;
-        const t0 = last;
-        const finalMod = (L - target * REEL_SLOT) % L;
-        const tick = (now: number) => {
-            const dt = Math.min(50, now - last); last = now;
-            const el = now - t0;
-            let smear = 0;
-            if (el < stopStart) { pos = (pos + 1500 * dt / 1000) % L; smear = 10; }
-            else {
-                if (posS === null) { posS = pos; distS = ((finalMod - (pos % L) + L) % L) + L; }
-                const u = Math.min(1, (el - stopStart) / DECEL);
-                pos = posS + distS * (1 - Math.pow(1 - u, 3));
-                smear = u < 0.7 ? 6 : 0;
-                if (u >= 1 && !done) {
-                    done = true;
-                    pos = finalMod;
-                    drawReelFrame(ctx, pos, 0, cvs.width, cvs.height);
-                    onStop(idx);
-                    return;
-                }
-            }
-            drawReelFrame(ctx, pos, smear, cvs.width, cvs.height);
-            if (!done) raf = requestAnimationFrame(tick);
-        };
-        raf = requestAnimationFrame(tick);
-        return () => cancelAnimationFrame(raf);
-    }, [spin, ready]); // eslint-disable-line
-    return <canvas ref={ref} width={52} height={REEL_SLOT} className="sb-reelcvs" />;
 }
 
 function mergeAll(list: Unit[]): { list: Unit[]; merged: string[] } {
@@ -115,11 +61,11 @@ export function App() {
     const hoverRef = useRef<number | null>(null);
     const flashCellRef = useRef<{ cell: number; until: number } | null>(null);
     const [phase, setPhase] = useState<'prep' | 'battle' | 'win' | 'lose'>('prep');
-    const [reels, setReels] = useState<(number | null)[]>([null, null, null]);
-    const [reelRar, setReelRar] = useState<(number | null)[]>([null, null, null]);
+    const [grid, setGrid] = useState<GridCell[] | null>(null);
+    const [view, setView] = useState<GridCell[] | null>(null);
+    const [pend, setPend] = useState<{ grid: GridCell[]; rerolled: boolean } | null>(null);
+    const [held, setHeld] = useState<boolean[]>([false, false, false]);
     const [spinning, setSpinning] = useState(false);
-    const [spin, setSpin] = useState<{ targets: number[]; rarities: number[] } | null>(null);
-    const [stopped, setStopped] = useState(0);
     const [flash, setFlash] = useState(false);
     const [msg, setMsg] = useState('소환해서 유닛을 배치하세요');
     const [kills, setKills] = useState<[number, number]>([0, 0]);
@@ -207,12 +153,13 @@ export function App() {
         try {
             const q = JSON.parse(xfer); if (!q || !Array.isArray(q.units)) throw new Error('x');
             setUnits(q.units.map((a: number[]) => ({ uid: uidSeq++, def: ALLIES[a[0]], rarity: a[1] as 0 | 1 | 2, lv: a[2], enh: a[3], cell: a[4] })).filter((u: Unit) => u.def));
-            setCoins(q.coins | 0); setShards(q.shards | 0); setRegion(Math.min(q.region | 0, REGIONS.length - 1)); setStageIdx(q.stage | 0); setCleared(q.cleared || {}); battleRef.current = null; setPhase('prep'); setMsg('불러왔습니다'); setMap(false);
+            setCoins(q.coins | 0); setShards(q.shards | 0); setRegion(Math.min(q.region | 0, REGIONS.length - 1)); setStageIdx(q.stage | 0); setCleared(q.cleared || {}); battleRef.current = null; setPend(null); setGrid(null); setView(null); setPhase('prep'); setMsg('불러왔습니다'); setMap(false);
         } catch { setMsg('저장 코드를 읽지 못했습니다'); }
     };
+    const [speed, setSpeed] = useState(1); const speedRef = useRef(1); speedRef.current = speed;
     const [confirmReset, setConfirmReset] = useState(false);
     useEffect(() => { if (!confirmReset) return; const t = setTimeout(() => setConfirmReset(false), 4000); return () => clearTimeout(t); }, [confirmReset]);
-    const resetAll = () => { if (!confirmReset) { setConfirmReset(true); return; } setConfirmReset(false); setUnits([]); setCoins(12); setShards(0); setRegion(0); setStageIdx(0); setCleared({}); battleRef.current = null; setPhase('prep'); setMap(false); setMsg('처음부터 시작'); };
+    const resetAll = () => { if (!confirmReset) { setConfirmReset(true); return; } setConfirmReset(false); setUnits([]); setCoins(12); setShards(0); setRegion(0); setStageIdx(0); setCleared({}); battleRef.current = null; setPend(null); setGrid(null); setView(null); setHeld([false, false, false]); setPhase('prep'); setMap(false); setMsg('처음부터 시작'); };
 
     const reg = REGIONS[region];
     const board = units.filter((u) => u.cell >= 0);
@@ -226,8 +173,8 @@ export function App() {
             const dt = Math.min(50, now - last); last = now;
             const c = canvasRef.current; const b = battleRef.current;
             if (b) {
-                step(b, dt);
-                if (b.events) { for (const e of b.events.splice(0)) fxRef.current?.add(e); } fxRef.current?.update(dt);
+                for (let k = 0; k < speedRef.current; k++) step(b, dt);
+                if (b.events) { for (const e of b.events.splice(0)) fxRef.current?.add(e); } fxRef.current?.update(dt * speedRef.current);
                 acc += dt; if (acc > 150) { acc = 0; setKills([b.kills, b.total]); }
                 if (b.result && phaseRef.current === 'battle') {
                     setKills([b.kills, b.total]);
@@ -253,25 +200,43 @@ export function App() {
         return () => cancelAnimationFrame(raf);
     }, [ready]);
 
-    const summon = useCallback(() => {
-        if (spinning || phase === 'battle' || coins < SUMMON_COST) return;
-        setCoins((c) => c - SUMMON_COST); setSpinning(true); setSel(null);
-        setReelRar([null, null, null]); setFlash(false); setStopped(0);
-        const picks = [0, 1, 2].map(() => ({ def: rollUnit(), r: rollRarity() }));
-        setSpin({ targets: picks.map((p) => ALLIES.indexOf(p.def)), rarities: picks.map((p) => p.r) });
-    }, [spinning, phase, coins]);
-
+    const heldCount = held.filter(Boolean).length;
+    const spinCost = SUMMON_COST + heldCount;
+    const summon = () => {
+        if (spinning || pend || phase === 'battle' || coins < spinCost) return;
+        setCoins((c) => c - spinCost); setSpinning(true); setSel(null); setFlash(false);
+        const base = grid; const keep = held.slice();
+        const fin: GridCell[] = Array.from({ length: 9 }, (_, i) => (base && keep[i % 3] ? base[i] : rollCell()));
+        setHeld([false, false, false]); setUndo(null);
+        const cols = [0, 1, 2]; const stopAt = [650, 1000, 1350];
+        const t0 = performance.now();
+        const iv = setInterval(() => {
+            const el = performance.now() - t0;
+            setView(Array.from({ length: 9 }, (_, i) => (el >= stopAt[i % 3] || (base && keep[i % 3]) ? fin[i] : rollCell())));
+            if (el >= stopAt[2] + 40) {
+                clearInterval(iv); setView(fin); setGrid(fin); setSpinning(false); setPend({ grid: fin, rerolled: false });
+            }
+        }, 80);
+        void cols;
+    };
+    const commit = (g: GridCell[]) => {
+        const ev = evalGrid(g);
+        const made: Unit[] = ev.summons.map((c) => ({ uid: uidSeq++, def: ALLIES[c.u], rarity: c.r, cell: -1, lv: 1, enh: 0 }));
+        setUnits((u) => { const r = mergeAll([...u, ...made]); const tag = ev.wins.length ? `${ev.wins.length}줄 당첨 · ` : '무당첨 · '; setMsg(tag + (r.merged.length ? `합성! ${r.merged.join(', ')}` : `소환 ${made.length}기`)); return r.list; });
+        setPend(null); setFlash(true); setUndo(null); setTimeout(() => setFlash(false), 900);
+    };
     useEffect(() => {
-        if (!spin || stopped < 3) return;
-        const made: Unit[] = spin.targets.map((t, i) => ({ uid: uidSeq++, def: ALLIES[t], rarity: spin.rarities[i] as 0 | 1 | 2, cell: -1, lv: 1, enh: 0 }));
-        setUnits((u) => { const r = mergeAll([...u, ...made]); setMsg(r.merged.length ? `합성! ${r.merged.join(', ')}` : `소환: ${made.map((m) => m.def.name).join(', ')}`); return r.list; });
-        setReels(spin.targets); setReelRar(spin.rarities);
-        setSpin(null); setSpinning(false); setFlash(true); setUndo(null);
-        const to = setTimeout(() => setFlash(false), 900);
-        return () => clearTimeout(to);
-    }, [spin, stopped]); // eslint-disable-line
-
-    const onReelStop = useCallback(() => setStopped((c) => c + 1), []);
+        if (!pend) return;
+        const t = setTimeout(() => commit(pend.grid), pend.rerolled ? 1400 : 2600);
+        return () => clearTimeout(t);
+    }, [pend]); // eslint-disable-line
+    const rerollCol = (c: number) => {
+        if (!pend || pend.rerolled || coins < REROLL_COST) return;
+        setCoins((x) => x - REROLL_COST);
+        const ng = pend.grid.map((cell, i) => (i % 3 === c ? rollCell() : cell));
+        setGrid(ng); setView(ng); setPend({ grid: ng, rerolled: true });
+    };
+    const toggleHold = (c: number) => { if (spinning || pend || !grid) return; setHeld((h) => { const n = h.slice(); n[c] = !n[c]; if (n.filter(Boolean).length > 2) return h; return n; }); };
 
     const cellAt = (x: number, y: number): number => {
         // 가장 가까운 칸으로 스냅(사각지대·중첩 없음): 열 경계 68/120, 행 경계 167/201
@@ -385,12 +350,22 @@ export function App() {
         </div>
         {phase !== 'win' && phase !== 'lose' && <div className="sb-msg">{msg}</div>}
         <div className="sb-slot">
-            <div className={`sb-reels${flash ? ' flash' : ''}`}>{[0, 1, 2].map((i) => <div key={i} className={`sb-reel${spin && i < stopped ? ' hit' : ''}`} style={!spinning && reelRar[i] !== null ? { borderColor: RARITY_COLOR[reelRar[i] as 0 | 1 | 2] } : undefined}>{spinning || spin ? <Reel idx={i} spin={spin} prev={reels[i]} ready={ready} onStop={onReelStop} /> : reels[i] === null ? <span>?</span> : <Icon sheet={ALLIES[reels[i] as number].sheet} ready={ready} />}</div>)}</div>
-            <button type="button" className="sb-btn sb-summon" disabled={spinning || phase === 'battle' || coins < SUMMON_COST || !ready || !saved.ready} onClick={summon}>소환<small>● {SUMMON_COST}</small></button>
+            <div className="sb-gridwrap">
+                <div className={`sb-grid${flash ? ' flash' : ''}`}>{Array.from({ length: 9 }, (_, i) => {
+                    const cur = (spinning ? view : (pend ? pend.grid : grid)); const cell = cur ? cur[i] : null;
+                    const ev = !spinning && cur ? evalGrid(cur).wins : [];
+                    const w = ev.find((x) => x.cells.includes(i));
+                    return <div key={i} className={`sb-cell${w ? ' win' : ''}${w && w.kind === 'jackpot' ? ' jp' : ''}${held[i % 3] ? ' held' : ''}`} style={cell && !spinning ? { borderColor: RARITY_COLOR[cell.r] } : undefined}>{cell ? <Icon sheet={ALLIES[cell.u].sheet} ready={ready} /> : <span>?</span>}</div>;
+                })}</div>
+                <div className="sb-gridctl">{[0, 1, 2].map((c) => pend && !pend.rerolled
+                    ? <button key={c} type="button" className="sb-mini" disabled={coins < REROLL_COST} onClick={() => rerollCol(c)}>↻{c + 1}열 ●{REROLL_COST}</button>
+                    : <button key={c} type="button" className={`sb-mini${held[c] ? ' on' : ''}`} disabled={spinning || !!pend || !grid} onClick={() => toggleHold(c)}>{held[c] ? '고정됨' : '고정'}</button>)}</div>
+            </div>
+            <button type="button" className="sb-btn sb-summon" disabled={spinning || !!pend || phase === 'battle' || coins < spinCost || !ready || !saved.ready} onClick={summon}>소환<small>● {spinCost}</small></button>
         </div>
         <div className="sb-bar">
-            {phase === 'prep' && <><button type="button" className="sb-btn go" disabled={!ready || !reg.ready} onClick={startFight}>전투 시작</button><button type="button" className="sb-btn ghost" disabled={!ready} onClick={() => setFormOpen(true)}>편성</button><button type="button" className="sb-btn ghost" disabled={!ready || !units.length} onClick={autoFormation}>자동 편성</button>{undo && <button type="button" className="sb-btn ghost" onClick={undoFormation}>되돌리기</button>}</>}
-            {phase === 'battle' && <button type="button" className="sb-btn go" disabled>전투 중</button>}
+            {phase === 'prep' && <><button type="button" className="sb-btn go" disabled={!ready || !reg.ready || spinning || !!pend} onClick={startFight}>전투 시작</button><button type="button" className="sb-btn ghost" disabled={!ready} onClick={() => setFormOpen(true)}>편성</button><button type="button" className="sb-btn ghost" disabled={!ready || !units.length} onClick={autoFormation}>자동 편성</button>{undo && <button type="button" className="sb-btn ghost" onClick={undoFormation}>되돌리기</button>}</>}
+            {phase === 'battle' && <><button type="button" className="sb-btn go" disabled>전투 중</button><button type="button" className={`sb-btn ghost${speed > 1 ? ' on' : ''}`} onClick={() => setSpeed((v) => (v === 1 ? 2 : 1))} aria-pressed={speed > 1}>배속 ×{speed}</button></>}
             {phase === 'win' && <><button type="button" className="sb-btn go" onClick={next}>다음 전투</button><button type="button" className="sb-btn ghost" onClick={() => toPrep()}>정비</button></>}
             {phase === 'lose' && <button type="button" className="sb-btn go" onClick={() => toPrep()}>다시 준비</button>}
         </div>

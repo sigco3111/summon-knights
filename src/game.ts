@@ -411,3 +411,19 @@ export function optimizeFormation(units: Unit[], stage: StageDef, runs = 8, max 
     }
     return { cells: best ? best.cells : new Map(), picked: best ? best.cells.size : 0, candidates: top.length, winRate: best ? best.win : 0, hpLeft: best ? best.hp : 0, stageLabel: stage.label };
 }
+
+// ---------- 3x3 슬롯 줄 판정 (우리 설계: 원작 규칙 아님) ----------
+export const GRID_LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
+export interface GridCell { u: number; r: 0 | 1 | 2 }
+export interface GridWin { cells: number[]; kind: 'jackpot' | 'role' }
+export function evalGrid(g: GridCell[]): { wins: GridWin[]; summons: GridCell[] } {
+    const wins: GridWin[] = []; const summons: GridCell[] = [];
+    for (const l of GRID_LINES) {
+        const [a, b, c] = l.map((i) => g[i]);
+        if (a.u === b.u && b.u === c.u) { wins.push({ cells: l, kind: 'jackpot' }); summons.push(a, b, c); }
+        else if (ALLIES[a.u].role === ALLIES[b.u].role && ALLIES[b.u].role === ALLIES[c.u].role) { wins.push({ cells: l, kind: 'role' }); summons.push(a, b); }
+    }
+    if (!wins.length) summons.push(g[4], g[3]);
+    return { wins, summons };
+}
+export function rollCell(): GridCell { return { u: ALLIES.indexOf(rollUnit()), r: rollRarity() }; }
