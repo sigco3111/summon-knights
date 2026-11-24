@@ -13,5 +13,5 @@
 
 ## 에셋 권리
 - LuizMelo(itch.io) 캐릭터 스프라이트: 페이지 명시 CC0
-- 배경: dark_forest / vista-ten / Mountain Dusk / Gothicvania Swamp(ansimuz): CC0
+- 배경: 8개 지역 모두 AI 생성(쿼터뷰 전장 배경)
 - 상세 라이선스 근거는 개발 문서(권리 목록)에 별도 관리

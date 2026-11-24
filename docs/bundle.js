@@ -27570,7 +27570,7 @@
           ] })
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { type: "button", className: "sb-btn sm ghost", onClick: resetAll, children: "\uC9C4\uD589 \uCD08\uAE30\uD654" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "sb-credit", children: "\uC2A4\uD504\uB77C\uC774\uD2B8: LuizMelo \uD329(Hero Knight 1-2, Fantasy Warrior, Medieval Warrior 1-3, Medieval King 1-2, Martial Hero 1-3, Huntress 1-2, Evil Wizard 1-3, Fire Worm, Monsters Creatures Fantasy 1-2), Wizard Pack. \uBCF4\uC2A4(3-8\uC9C0\uC5ED): chierit (CC-BY 4.0) \u2014 Boss: Demon Slime, Boss: Frost Guardian, Free Cthulhu, Elementals: Crystal Mauler / Fire Knight / Wind Hashashin (chierit.itch.io). \uBC30\uACBD: Super Grotto Escape(ansimuz, CC0), Dark Forest, VISTA-ten." })
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "sb-credit", children: "\uC2A4\uD504\uB77C\uC774\uD2B8: LuizMelo \uD329(Hero Knight 1-2, Fantasy Warrior, Medieval Warrior 1-3, Medieval King 1-2, Martial Hero 1-3, Huntress 1-2, Evil Wizard 1-3, Fire Worm, Monsters Creatures Fantasy 1-2), Wizard Pack. \uBCF4\uC2A4(3-8\uC9C0\uC5ED): chierit (CC-BY 4.0) \u2014 Boss: Demon Slime, Boss: Frost Guardian, Free Cthulhu, Elementals: Crystal Mauler / Fire Knight / Wind Hashashin (chierit.itch.io). \uBC30\uACBD: 8\uAC1C \uC9C0\uC5ED \uBAA8\uB450 AI \uC0DD\uC131(\uCFFC\uD130\uBDF0 \uC804\uC7A5 \uBC30\uACBD)." })
       ] })
     ] });
   }
