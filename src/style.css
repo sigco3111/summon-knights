@@ -213,3 +213,5 @@ body { background: #120c1a; }
 .sb-bar .sb-btn.ghost{flex:1 1 calc(50% - 4px);white-space:nowrap;padding:0 6px}
 
 .sb-fcell.warn{border-color:#b3402a;background:#ffe3d6}.sb-warn{font-style:normal;font-size:10px;color:#a52a14;font-weight:bold}.sb-fnote{font-size:11px;line-height:15px;color:#5e4826;margin:2px 0 6px}
+
+@media (max-width:480px){.sb-fnote{font-size:10px;line-height:13px;margin:0 0 4px}.sb-warn{font-size:9px}}
