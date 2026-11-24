@@ -211,3 +211,5 @@ body { background: #120c1a; }
 .sb-form .sb-btn{white-space:nowrap;font-size:13px}
 @media (max-width:480px){.sb-fcell{min-height:60px}.sb-fgrid{gap:4px}.sb-form{padding:8px}.sb-flist{grid-template-columns:repeat(5,1fr)}.sb-form .sb-btn.sm{padding:6px 4px;font-size:12px}}
 .sb-bar .sb-btn.ghost{flex:1 1 calc(50% - 4px);white-space:nowrap;padding:0 6px}
+
+.sb-fcell.warn{border-color:#b3402a;background:#ffe3d6}.sb-warn{font-style:normal;font-size:10px;color:#a52a14;font-weight:bold}.sb-fnote{font-size:11px;line-height:15px;color:#5e4826;margin:2px 0 6px}

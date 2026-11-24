@@ -15,7 +15,7 @@ const BG_SRC: Record<string, string> = { grotto, forest: bgforest, canopy: bgcan
 import {
     ALLIES, REGIONS, RARITY_NAME, RARITY_COLOR, STAGES_PER_REGION, W, H, MAX_LV, MAX_ENH, buildStage, cellPos, drawBattle, drawSprite, iconDraw, allUrls, registerImg,
     rollRarity, rollUnit, startBattle, step, synergy, synergyBonus, unitMult, enhCost, shardValue, type Battle, type Unit,
-  assignCells, optimizeFormation, unitPower,
+  assignCells, optimizeFormation, unitPower, CELL_X,
 } from './game';
 
 const SUMMON_COST = 3;
@@ -409,10 +409,13 @@ export function App() {
             <div className="sb-maphead"><b>편성 <small>출전 {board.length}/{MAX_BOARD}</small></b><button type="button" className="sb-btn sm ghost" onClick={() => { setFormOpen(false); setSel(null); }}>닫기</button></div>
             <div className="sb-syn">{ROLES.map((r) => <span key={r} className={syn[r] ? 'on' : ''}>{r} {syn[r] || 0}{synergyBonus(syn[r] || 0) ? <em>+{Math.round(synergyBonus(syn[r]) * 100)}%</em> : null}</span>)}</div>
             <div className="sb-fdir"><span>◀ 후방</span><span>적 진입 방향 · 전방 ▶</span></div>
+            <div className="sb-fnote">사거리: 전열 54 · 딜러 120 · 원거리/지원 200. 전열(앞열)이 막고 있을 때 사거리가 짧은 유닛을 뒷열에 두면 적에게 닿지 않습니다(⚠ 표시).</div>
             <div className="sb-fgrid">{Array.from({ length: 9 }, (_, c) => {
                 const u = units.find((x) => x.cell === c);
-                return <button type="button" key={c} className={`sb-fcell${u ? ' has' : ''}${u && sel === u.uid ? ' is-sel' : ''}${sel !== null && !(u && sel === u.uid) ? ' target' : ''}`} onClick={() => formCell(c)} aria-label={`${c % 3 === 2 ? '전방' : c % 3 === 0 ? '후방' : '중앙'} ${Math.floor(c / 3) + 1}행`}>
-                    {u ? <><Icon sheet={u.def.sheet} ready={ready} lv={u.lv} /><span>{u.def.role} {'★'.repeat(u.lv)}</span></> : <small>{sel !== null ? '여기에 배치' : '빈 칸'}</small>}
+                const frontHeld = units.some((x) => x.cell >= 0 && x.cell % 3 === 2);
+                const blocked = !!u && c % 3 < 2 && frontHeld && u.def.range + 6 < (CELL_X[2] - CELL_X[c % 3]) + 34;
+                return <button type="button" key={c} className={`sb-fcell${u ? ' has' : ''}${blocked ? ' warn' : ''}${u && sel === u.uid ? ' is-sel' : ''}${sel !== null && !(u && sel === u.uid) ? ' target' : ''}`} onClick={() => formCell(c)} aria-label={`${c % 3 === 2 ? '전방' : c % 3 === 0 ? '후방' : '중앙'} ${Math.floor(c / 3) + 1}행`}>
+                    {u ? <><Icon sheet={u.def.sheet} ready={ready} lv={u.lv} /><span>{u.def.role} {'★'.repeat(u.lv)}</span>{blocked && <em className="sb-warn">⚠ 사거리 부족</em>}</> : <small>{sel !== null ? '여기에 배치' : '빈 칸'}</small>}
                 </button>;
             })}</div>
             <div className="sb-factions">
