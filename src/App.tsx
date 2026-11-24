@@ -2,6 +2,14 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocalState } from '@instinct/files';
 import { FxLayer } from './fxlayer';
 import grotto from './photos/grotto.png';
+import bgforest from './photos/forest.png';
+import bgcanopy from './photos/canopy.png';
+import bgtundra from './photos/tundra.png';
+import bghollow from './photos/hollow.png';
+import bgmesa from './photos/mesa.png';
+import bgkiln from './photos/kiln.png';
+import bgsodium from './photos/sodium.png';
+const BG_SRC: Record<string, string> = { grotto, forest: bgforest, canopy: bgcanopy, tundra: bgtundra, hollow: bghollow, mesa: bgmesa, kiln: bgkiln, sodium: bgsodium };
 import {
     ALLIES, REGIONS, RARITY_NAME, RARITY_COLOR, STAGES_PER_REGION, W, H, MAX_LV, MAX_ENH, buildStage, cellPos, drawBattle, iconDraw, allUrls, registerImg,
     rollRarity, rollUnit, startBattle, step, synergy, synergyBonus, unitMult, enhCost, shardValue, type Battle, type Unit,
@@ -55,7 +63,7 @@ export function App() {
     const fxRef = useRef<FxLayer | null>(null); if (!fxRef.current && typeof document !== 'undefined') fxRef.current = new FxLayer(W, H);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const battleRef = useRef<Battle | null>(null);
-    const bgRef = useRef<HTMLImageElement | null>(null);
+    const bgsRef = useRef<Record<string, HTMLImageElement>>({});
     const unitsRef = useRef<Unit[]>([]); unitsRef.current = units;
     const phaseRef = useRef(phase); phaseRef.current = phase;
     const regionRef = useRef(region); regionRef.current = region;
@@ -104,7 +112,7 @@ export function App() {
                 acc += dt; if (acc > 150) { acc = 0; setKills([b.kills, b.total]); }
                 if (b.result && phaseRef.current === 'battle') { setKills([b.kills, b.total]); setPhase(b.result); }
             }
-            if (c) { const ctx = c.getContext('2d'); if (ctx) drawBattle(ctx, b, unitsRef.current.filter((u) => u.cell >= 0), bgRef.current, REGIONS[regionRef.current].bg, null); fxRef.current?.draw(ctx); }
+            if (c) { const ctx = c.getContext('2d'); if (ctx) drawBattle(ctx, b, unitsRef.current.filter((u) => u.cell >= 0), bgsRef.current, REGIONS[regionRef.current].bg, null); fxRef.current?.draw(ctx); }
             raf = requestAnimationFrame(loop);
         };
         raf = requestAnimationFrame(loop);
@@ -174,7 +182,7 @@ export function App() {
 
     const syn = synergy(board);
     return <div className="sb-app">
-        <div className="sb-hidden" aria-hidden="true">{urls.map((u) => <img key={u} src={u} alt="" onLoad={(e) => onImg(u, e.currentTarget)} />)}<img src={grotto} alt="" onLoad={(e) => { bgRef.current = e.currentTarget; onImg('bg', e.currentTarget); }} /></div>
+        <div className="sb-hidden" aria-hidden="true">{urls.map((u) => <img key={u} src={u} alt="" onLoad={(e) => onImg(u, e.currentTarget)} />)}{Object.entries(BG_SRC).map(([k, src]) => <img key={k} src={src} alt="" onLoad={(e) => { bgsRef.current[k] = e.currentTarget; onImg(`bg:${k}`, e.currentTarget); }} />)}</div>
         <div className="sb-top">
             <button type="button" className="sb-stage" onClick={() => setMap(true)} disabled={phase === 'battle'}><b>{reg.id} {reg.name}</b><span>{stage.label} {stage.kind}</span></button>
             <div className="sb-res"><span className="sb-coin" title="소환 코인">●</span><b>{coins}</b><span className="sb-shard" title="강화 조각">◆</span><b>{shards}</b></div>
@@ -214,14 +222,14 @@ export function App() {
         {map && <div className="sb-map" role="dialog" aria-label="지역">
             <div className="sb-maphead"><b>지역</b><button type="button" className="sb-btn sm ghost" onClick={() => setMap(false)}>닫기</button></div>
             {REGIONS.map((r, ri) => <div key={r.id} className={`sb-reg${ri === region ? ' cur' : ''}${r.ready ? '' : ' lock'}`}>
-                <b>{r.id} {r.name}</b>
+                <b>{r.id} {r.name}</b>{r.temp && <small className="sb-temp">개발중 · 임시 보스</small>}
                 {r.ready ? <div className="sb-dots">{Array.from({ length: STAGES_PER_REGION }, (_, k) => <button type="button" key={k} className={cleared[`${r.id}-${k + 1}`] ? 'done' : ''} onClick={() => goStage(ri, k)}>{k === STAGES_PER_REGION - 1 ? '보' : k === STAGES_PER_REGION - 2 ? '정' : k + 1}</button>)}</div> : <small>잠김 · {r.need}</small>}
             </div>)}
             <div className="sb-xfer"><b>저장 코드</b><small>자동 저장이 안 되는 환경에서는 코드를 복사해 보관하세요.</small>
                 <textarea value={xfer} onChange={(e) => setXfer(e.target.value)} rows={3} aria-label="저장 코드" />
                 <div><button type="button" className="sb-btn sm ghost" onClick={exportSave}>내보내기</button> <button type="button" className="sb-btn sm ghost" onClick={importSave} disabled={phase === 'battle' || !xfer}>불러오기</button></div></div>
             <button type="button" className="sb-btn sm ghost" onClick={resetAll}>진행 초기화</button>
-            <p className="sb-credit">스프라이트: LuizMelo 팩(Hero Knight, Fantasy Warrior, Martial Hero, Huntress, Evil Wizard, Fire Worm, Monsters Creatures Fantasy), Wizard Pack. 2지역 배경: Super Grotto Escape(ansimuz, CC0).</p>
+            <p className="sb-credit">스프라이트: LuizMelo 팩(Hero Knight 1-2, Fantasy Warrior, Medieval Warrior 1-3, Medieval King 1-2, Martial Hero 1-3, Huntress 1-2, Evil Wizard 1-3, Fire Worm, Monsters Creatures Fantasy 1-2), Wizard Pack. 배경: Super Grotto Escape(ansimuz, CC0), Dark Forest, VISTA-ten. 지역 3-8의 보스는 임시 색변주이며 확정 에셋으로 교체 예정.</p>
         </div>}
     </div>;
 }

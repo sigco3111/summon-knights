@@ -24,11 +24,22 @@ export const ALLIES: UnitDef[] = [
     { id: 'martial', sheet: 'mh', name: 'Martial Hero', role: '딜러', hp: 150, atk: 30, cd: 800, range: 54, face: 1, px: 52, desc: '근접 고화력 딜러' },
     { id: 'huntress', sheet: 'hu', name: 'Huntress', role: '원거리', hp: 120, atk: 22, cd: 900, range: 200, face: 1, ranged: 'spear', px: 46, desc: '창을 던지는 원거리' },
     { id: 'wizard', sheet: 'wz', name: 'Wizard', role: '지원', hp: 110, atk: 10, cd: 1400, range: 200, face: 1, ranged: 'orb', heal: 26, px: 50, desc: '아군을 치유하는 지원' },
+    { id: 'mwarrior1', sheet: 'mw1', name: 'Medieval Warrior', role: '전열', hp: 220, atk: 18, cd: 950, range: 54, face: 1, px: 50, desc: '검과 방패의 균형 전사' },
+    { id: 'mwarrior2', sheet: 'mw2', name: 'Medieval Warrior 2', role: '전열', hp: 230, atk: 17, cd: 950, range: 54, face: 1, px: 50, desc: '단단한 중검 전사' },
+    { id: 'mwarrior3', sheet: 'mw3', name: 'Medieval Warrior 3', role: '전열', hp: 215, atk: 19, cd: 900, range: 54, face: 1, px: 50, desc: '빠른 검술의 전사' },
+    { id: 'mking1', sheet: 'mk1', name: 'Medieval King', role: '전열', hp: 280, atk: 15, cd: 1100, range: 54, face: 1, px: 54, desc: '높은 체력의 왕' },
+    { id: 'mking2', sheet: 'mk2', name: 'Medieval King 2', role: '전열', hp: 290, atk: 16, cd: 1100, range: 54, face: 1, px: 54, desc: '전선을 지키는 왕' },
+    { id: 'hknight2', sheet: 'hk2', name: 'Hero Knight 2', role: '전열', hp: 250, atk: 16, cd: 1000, range: 54, face: 1, px: 50, desc: '돌진하는 기사' },
+    { id: 'martial2', sheet: 'mh2', name: 'Martial Hero 2', role: '딜러', hp: 145, atk: 32, cd: 800, range: 54, face: 1, px: 52, desc: '연속 타격 딜러' },
+    { id: 'martial3', sheet: 'mh3', name: 'Martial Hero 3', role: '딜러', hp: 140, atk: 34, cd: 780, range: 54, face: 1, px: 52, desc: '극화력 격투가' },
+    { id: 'huntress2', sheet: 'hu2', name: 'Huntress 2', role: '원거리', hp: 115, atk: 24, cd: 880, range: 200, face: 1, ranged: 'spear', px: 46, desc: '화살을 쏘는 원거리' },
+    { id: 'ewizard1', sheet: 'ew', name: 'Evil Wizard', role: '원거리', hp: 105, atk: 26, cd: 1100, range: 200, face: 1, ranged: 'orb', px: 50, desc: '마법 구체의 원거리 딜러' },
+    { id: 'ewizard2', sheet: 'ew2', name: 'Evil Wizard 2', role: '원거리', hp: 100, atk: 28, cd: 1080, range: 200, face: 1, ranged: 'orb', px: 50, desc: '강력한 마법의 원거리 딜러' },
 ];
 
 export interface EnemyDef {
     id: string; sheet: string; name: string; hp: number; atk: number; cd: number; speed: number; range: number;
-    px: number; flying?: boolean; boss?: boolean; face: number;
+    px: number; flying?: boolean; boss?: boolean; face: number; hue?: number; temp?: boolean;
 }
 
 export const ENEMIES: Record<string, EnemyDef> = {
@@ -37,19 +48,30 @@ export const ENEMIES: Record<string, EnemyDef> = {
     skeleton: { id: 'skeleton', sheet: 'sk', name: 'Skeleton', hp: 75, atk: 10, cd: 1100, speed: 24, range: 40, px: 48, face: 1 },
     eye: { id: 'eye', sheet: 'fe', name: 'Flying Eye', hp: 40, atk: 7, cd: 900, speed: 34, range: 34, px: 34, flying: true, face: 1 },
     worm: { id: 'worm', sheet: 'fwm', name: 'Fire Worm', hp: 900, atk: 26, cd: 1500, speed: 14, range: 46, px: 64, boss: true, face: 1 },
-    wizardBoss: { id: 'wizardBoss', sheet: 'ew', name: 'Evil Wizard', hp: 1200, atk: 34, cd: 1500, speed: 18, range: 60, px: 72, boss: true, face: 1 },
+    wizardBoss: { id: 'wizardBoss', sheet: 'ew3', name: 'Evil Wizard 3', hp: 1200, atk: 34, cd: 1500, speed: 18, range: 60, px: 72, boss: true, face: 1 },
+    rat: { id: 'rat', sheet: 'rat', name: 'Rat', hp: 35, atk: 6, cd: 700, speed: 52, range: 30, px: 30, face: 1 },
+    slime: { id: 'slime', sheet: 'slime', name: 'Slime', hp: 130, atk: 10, cd: 1600, speed: 16, range: 30, px: 34, face: 1 },
+    bat: { id: 'bat', sheet: 'bat', name: 'Bat', hp: 38, atk: 7, cd: 800, speed: 44, range: 30, px: 30, flying: true, face: 1 },
+    mimic: { id: 'mimic', sheet: 'mimic', name: 'Mimic', hp: 420, atk: 22, cd: 1200, speed: 10, range: 40, px: 44, face: 1 },
+    // TEMP interim bosses (hue variants) until user picks final bosses: not final content
+    bogWorm: { id: 'bogWorm', sheet: 'fwm', name: 'Bog Worm', hp: 1400, atk: 40, cd: 1500, speed: 14, range: 46, px: 64, boss: true, face: 1, hue: 120, temp: true },
+    frostWorm: { id: 'frostWorm', sheet: 'fwm', name: 'Frost Worm', hp: 1700, atk: 46, cd: 1500, speed: 14, range: 46, px: 64, boss: true, face: 1, hue: 200, temp: true },
+    abyssWizard: { id: 'abyssWizard', sheet: 'ew3', name: 'Abyss Wizard', hp: 2100, atk: 54, cd: 1450, speed: 18, range: 60, px: 72, boss: true, face: 1, hue: 260, temp: true },
+    doomWorm: { id: 'doomWorm', sheet: 'fwm', name: 'Doom Worm', hp: 2800, atk: 62, cd: 1450, speed: 15, range: 46, px: 66, boss: true, face: 1, hue: 300, temp: true },
+    infernoWorm: { id: 'infernoWorm', sheet: 'fwm', name: 'Inferno Worm', hp: 3700, atk: 72, cd: 1400, speed: 15, range: 46, px: 66, boss: true, face: 1, hue: 340, temp: true },
+    lastWizard: { id: 'lastWizard', sheet: 'ew3', name: 'Last Wizard', hp: 4900, atk: 85, cd: 1400, speed: 20, range: 60, px: 76, boss: true, face: 1, hue: 180, temp: true },
 };
 
-export interface RegionDef { id: number; name: string; pool: string[]; elite: string; boss: string; bg: 'forest' | 'grotto' | 'none'; ready: boolean; need: string; }
+export interface RegionDef { id: number; name: string; pool: string[]; elite: string; boss: string; bg: string; ready: boolean; need: string; temp?: boolean; }
 export const REGIONS: RegionDef[] = [
     { id: 1, name: '숲', pool: ['goblin', 'mushroom', 'eye'], elite: 'mushroom', boss: 'worm', bg: 'forest', ready: true, need: '' },
     { id: 2, name: '동굴', pool: ['skeleton', 'goblin', 'eye'], elite: 'skeleton', boss: 'wizardBoss', bg: 'grotto', ready: true, need: '' },
-    { id: 3, name: '늪과 폐허', pool: [], elite: '', boss: '', bg: 'none', ready: false, need: '보스 Demon Slime 사용 조건 확인과 배경 VISTA 확인 필요' },
-    { id: 4, name: '설원', pool: [], elite: '', boss: '', bg: 'none', ready: false, need: '배경과 적 확보 필요' },
-    { id: 5, name: '심연', pool: [], elite: '', boss: '', bg: 'none', ready: false, need: '보스 Cthulu와 배경 확보 필요' },
-    { id: 6, name: '미궁', pool: [], elite: '', boss: '', bg: 'none', ready: false, need: '보스와 배경 확보 필요' },
-    { id: 7, name: '화염 지대', pool: [], elite: '', boss: '', bg: 'none', ready: false, need: '보스, 적, 배경 확보 필요' },
-    { id: 8, name: '최종 지역', pool: [], elite: '', boss: '', bg: 'none', ready: false, need: '보스, 적, 배경 확보 필요' },
+    { id: 3, name: '늪과 폐허', pool: ['rat', 'slime', 'mushroom'], elite: 'slime', boss: 'bogWorm', bg: 'canopy', ready: true, need: '', temp: true },
+    { id: 4, name: '설원', pool: ['bat', 'rat', 'skeleton'], elite: 'skeleton', boss: 'frostWorm', bg: 'tundra', ready: true, need: '', temp: true },
+    { id: 5, name: '심연', pool: ['eye', 'bat', 'skeleton'], elite: 'eye', boss: 'abyssWizard', bg: 'hollow', ready: true, need: '', temp: true },
+    { id: 6, name: '미궁', pool: ['skeleton', 'slime', 'goblin'], elite: 'mimic', boss: 'doomWorm', bg: 'mesa', ready: true, need: '', temp: true },
+    { id: 7, name: '화염 지대', pool: ['goblin', 'bat', 'slime'], elite: 'slime', boss: 'infernoWorm', bg: 'kiln', ready: true, need: '', temp: true },
+    { id: 8, name: '최종 지역', pool: ['skeleton', 'bat', 'rat'], elite: 'mimic', boss: 'lastWizard', bg: 'sodium', ready: true, need: '', temp: true },
 ];
 export const STAGES_PER_REGION = 7; // 일반 5 + 정예 1 + 보스 1
 
@@ -80,7 +102,7 @@ export interface Fighter {
     team: 'a' | 'e'; key: string; sheet: string; x: number; y: number; baseX: number;
     hp: number; maxHp: number; atk: number; cd: number; range: number; speed: number; px: number; face: number;
     state: 'idle' | 'move' | 'atk' | 'hit' | 'die'; t: number; fired: boolean; cdLeft: number; target: Fighter | null;
-    ranged?: 'spear' | 'orb'; heal?: number; flying?: boolean; boss?: boolean; dead: boolean; fade: number; hitT: number; role?: Role; lv?: number;
+    ranged?: 'spear' | 'orb'; heal?: number; flying?: boolean; boss?: boolean; hue?: number; dead: boolean; fade: number; hitT: number; role?: Role; lv?: number;
     name: string;
 }
 export interface Proj { x: number; y: number; target: Fighter; dmg: number; kind: 'spear' | 'orb'; from: 'a' | 'e'; heal?: boolean; }
@@ -124,7 +146,7 @@ function spawnEnemy(b: Battle, id: string) {
     const m = b.stage.mult;
     b.fighters.push({
         team: 'e', key: `e${b.fighters.length}_${Math.random()}`, sheet: d.sheet, x: W + 30, y, baseX: W + 30, hp: Math.round(d.hp * m), maxHp: Math.round(d.hp * m), atk: d.atk * (1 + (m - 1) * 0.75), cd: d.cd,
-        range: d.range, speed: d.speed, px: d.px, face: -1, state: 'move', t: 0, fired: false, cdLeft: 400, target: null, flying: d.flying, boss: d.boss, dead: false, fade: 1, hitT: 0, name: d.name,
+        range: d.range, speed: d.speed, px: d.px, face: -1, state: 'move', t: 0, fired: false, cdLeft: 400, target: null, flying: d.flying, boss: d.boss, hue: d.hue, dead: false, fade: 1, hitT: 0, name: d.name,
     });
 }
 
@@ -231,10 +253,11 @@ export function drawSprite(ctx: CanvasRenderingContext2D, sheet: string, anim: s
     ctx.restore();
 }
 
-export function drawBattle(ctx: CanvasRenderingContext2D, b: Battle | null, board: Unit[], bg: HTMLImageElement | null, regionBg: string, selectedCell: number | null) {
+export function drawBattle(ctx: CanvasRenderingContext2D, b: Battle | null, board: Unit[], bgs: Record<string, HTMLImageElement>, regionBg: string, selectedCell: number | null) {
     ctx.imageSmoothingEnabled = false;
     // background
-    if (regionBg === 'grotto' && bg && bg.naturalWidth) {
+    const bg = bgs[regionBg];
+    if (bg && bg.naturalWidth) {
         const sc = H / bg.naturalHeight; ctx.drawImage(bg, 0, 0, bg.naturalWidth, bg.naturalHeight, -40, 0, bg.naturalWidth * sc, H);
         ctx.fillStyle = 'rgba(10,10,20,0.15)'; ctx.fillRect(0, 0, W, H);
     } else {
@@ -258,7 +281,7 @@ export function drawBattle(ctx: CanvasRenderingContext2D, b: Battle | null, boar
                 const anim = f.state === 'move' ? 'move' : f.state;
                 const loop = f.state === 'idle' || f.state === 'move';
                 if (f.team === 'a') drawLvAura(ctx, f.x, f.y, f.lv || 1);
-                drawSprite(ctx, f.sheet, anim, f.t, f.x, f.y, f.px * (f.team === 'a' ? 1 + 0.06 * ((f.lv || 1) - 1) : 1), f.team === 'e', loop, f.dead ? f.fade : 1, 0, f.team === 'a' ? LV_HUE[f.lv || 1] : 0);
+                drawSprite(ctx, f.sheet, anim, f.t, f.x, f.y, f.px * (f.team === 'a' ? 1 + 0.06 * ((f.lv || 1) - 1) : 1), f.team === 'e', loop, f.dead ? f.fade : 1, 0, f.team === 'a' ? LV_HUE[f.lv || 1] : (f.hue || 0));
                 if (!f.dead) {
                     const w = f.boss ? 50 : 30; const hx = f.x - w / 2; const hy = f.y - f.px - 10;
                     ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(hx - 1, hy - 1, w + 2, 5);
@@ -295,7 +318,7 @@ export function iconDraw(canvas: HTMLCanvasElement, sheet: string, px = 40) {
 
 export function rollRarity(): Rarity { const r = Math.random(); return r < 0.05 ? 2 : r < 0.3 ? 1 : 0; }
 export function rollUnit(): UnitDef {
-    const w = [24, 22, 22, 18, 14]; const tot = w.reduce((a, b) => a + b, 0); let r = Math.random() * tot;
+    const w = [24, 22, 22, 18, 14, 12, 12, 12, 10, 10, 12, 12, 12, 12, 10, 10]; const tot = w.reduce((a, b) => a + b, 0); let r = Math.random() * tot;
     for (let i = 0; i < ALLIES.length; i++) { r -= w[i]; if (r <= 0) return ALLIES[i]; }
     return ALLIES[0];
 }

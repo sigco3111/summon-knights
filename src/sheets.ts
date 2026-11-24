@@ -48,6 +48,71 @@ import fwm_atk from './spr/fwm_atk.png';
 import fwm_hit from './spr/fwm_hit.png';
 import fwm_die from './spr/fwm_die.png';
 import fwm_move from './spr/fwm_move.png';
+import mw1_idle from './spr/mw1_idle.png';
+import mw1_atk from './spr/mw1_atk.png';
+import mw1_hit from './spr/mw1_hit.png';
+import mw1_die from './spr/mw1_die.png';
+import mw2_idle from './spr/mw2_idle.png';
+import mw2_atk from './spr/mw2_atk.png';
+import mw2_hit from './spr/mw2_hit.png';
+import mw2_die from './spr/mw2_die.png';
+import mw3_idle from './spr/mw3_idle.png';
+import mw3_atk from './spr/mw3_atk.png';
+import mw3_hit from './spr/mw3_hit.png';
+import mw3_die from './spr/mw3_die.png';
+import mk1_idle from './spr/mk1_idle.png';
+import mk1_atk from './spr/mk1_atk.png';
+import mk1_hit from './spr/mk1_hit.png';
+import mk1_die from './spr/mk1_die.png';
+import mk2_idle from './spr/mk2_idle.png';
+import mk2_atk from './spr/mk2_atk.png';
+import mk2_hit from './spr/mk2_hit.png';
+import mk2_die from './spr/mk2_die.png';
+import hk2_idle from './spr/hk2_idle.png';
+import hk2_atk from './spr/hk2_atk.png';
+import hk2_hit from './spr/hk2_hit.png';
+import hk2_die from './spr/hk2_die.png';
+import mh2_idle from './spr/mh2_idle.png';
+import mh2_atk from './spr/mh2_atk.png';
+import mh2_hit from './spr/mh2_hit.png';
+import mh2_die from './spr/mh2_die.png';
+import mh3_idle from './spr/mh3_idle.png';
+import mh3_atk from './spr/mh3_atk.png';
+import mh3_hit from './spr/mh3_hit.png';
+import mh3_die from './spr/mh3_die.png';
+import hu2_idle from './spr/hu2_idle.png';
+import hu2_atk from './spr/hu2_atk.png';
+import hu2_hit from './spr/hu2_hit.png';
+import hu2_die from './spr/hu2_die.png';
+import ew2_idle from './spr/ew2_idle.png';
+import ew2_atk from './spr/ew2_atk.png';
+import ew2_hit from './spr/ew2_hit.png';
+import ew2_die from './spr/ew2_die.png';
+import ew3_idle from './spr/ew3_idle.png';
+import ew3_atk from './spr/ew3_atk.png';
+import ew3_hit from './spr/ew3_hit.png';
+import ew3_die from './spr/ew3_die.png';
+import ew3_move from './spr/ew3_move.png';
+import rat_idle from './spr/rat_idle.png';
+import rat_atk from './spr/rat_atk.png';
+import rat_hit from './spr/rat_hit.png';
+import rat_die from './spr/rat_die.png';
+import rat_move from './spr/rat_move.png';
+import slime_idle from './spr/slime_idle.png';
+import slime_atk from './spr/slime_atk.png';
+import slime_hit from './spr/slime_hit.png';
+import slime_die from './spr/slime_die.png';
+import slime_move from './spr/slime_move.png';
+import bat_idle from './spr/bat_idle.png';
+import bat_atk from './spr/bat_atk.png';
+import bat_hit from './spr/bat_hit.png';
+import bat_die from './spr/bat_die.png';
+import bat_move from './spr/bat_move.png';
+import mimic_idle from './spr/mimic_idle.png';
+import mimic_atk from './spr/mimic_atk.png';
+import mimic_hit from './spr/mimic_hit.png';
+import mimic_die from './spr/mimic_die.png';
+import mimic_move from './spr/mimic_move.png';
 
 export const SHEETS: Record<string, Record<string, string>> = {
   hk: { idle: hk_idle, atk: hk_atk, hit: hk_hit, die: hk_die },
@@ -61,6 +126,21 @@ export const SHEETS: Record<string, Record<string, string>> = {
   fe: { idle: fe_idle, atk: fe_atk, hit: fe_hit, die: fe_die, move: fe_move },
   ew: { idle: ew_idle, atk: ew_atk, hit: ew_hit, die: ew_die, move: ew_move },
   fwm: { idle: fwm_idle, atk: fwm_atk, hit: fwm_hit, die: fwm_die, move: fwm_move },
+  mw1: { idle: mw1_idle, atk: mw1_atk, hit: mw1_hit, die: mw1_die },
+  mw2: { idle: mw2_idle, atk: mw2_atk, hit: mw2_hit, die: mw2_die },
+  mw3: { idle: mw3_idle, atk: mw3_atk, hit: mw3_hit, die: mw3_die },
+  mk1: { idle: mk1_idle, atk: mk1_atk, hit: mk1_hit, die: mk1_die },
+  mk2: { idle: mk2_idle, atk: mk2_atk, hit: mk2_hit, die: mk2_die },
+  hk2: { idle: hk2_idle, atk: hk2_atk, hit: hk2_hit, die: hk2_die },
+  mh2: { idle: mh2_idle, atk: mh2_atk, hit: mh2_hit, die: mh2_die },
+  mh3: { idle: mh3_idle, atk: mh3_atk, hit: mh3_hit, die: mh3_die },
+  hu2: { idle: hu2_idle, atk: hu2_atk, hit: hu2_hit, die: hu2_die },
+  ew2: { idle: ew2_idle, atk: ew2_atk, hit: ew2_hit, die: ew2_die },
+  ew3: { idle: ew3_idle, atk: ew3_atk, hit: ew3_hit, die: ew3_die, move: ew3_move },
+  rat: { idle: rat_idle, atk: rat_atk, hit: rat_hit, die: rat_die, move: rat_move },
+  slime: { idle: slime_idle, atk: slime_atk, hit: slime_hit, die: slime_die, move: slime_move },
+  bat: { idle: bat_idle, atk: bat_atk, hit: bat_hit, die: bat_die, move: bat_move },
+  mimic: { idle: mimic_idle, atk: mimic_atk, hit: mimic_hit, die: mimic_die, move: mimic_move },
 };
 
 export const META: Record<string, { fw: number; fh: number; cx: number; fy: number; h: number }> = {
@@ -75,4 +155,19 @@ export const META: Record<string, { fw: number; fh: number; cx: number; fy: numb
   fe: { fw: 150, fh: 150, cx: 77, fy: 92, h: 31 },
   ew: { fw: 150, fh: 150, cx: 73, fy: 100, h: 55 },
   fwm: { fw: 90, fh: 90, cx: 42, fy: 58, h: 41 },
+  mw1: { fw: 138, fh: 124, cx: 69, fy: 124, h: 81 },
+  mw2: { fw: 96, fh: 55, cx: 48, fy: 55, h: 41 },
+  mw3: { fw: 106, fh: 49, cx: 53, fy: 49, h: 38 },
+  mk1: { fw: 141, fh: 82, cx: 70, fy: 82, h: 81 },
+  mk2: { fw: 93, fh: 68, cx: 46, fy: 68, h: 54 },
+  hk2: { fw: 86, fh: 61, cx: 43, fy: 61, h: 39 },
+  mh2: { fw: 112, fh: 65, cx: 56, fy: 65, h: 56 },
+  mh3: { fw: 125, fh: 80, cx: 62, fy: 80, h: 41 },
+  hu2: { fw: 63, fh: 45, cx: 31, fy: 45, h: 36 },
+  ew2: { fw: 162, fh: 141, cx: 81, fy: 141, h: 104 },
+  ew3: { fw: 88, fh: 66, cx: 44, fy: 66, h: 53 },
+  rat: { fw: 59, fh: 22, cx: 29, fy: 22, h: 20 },
+  slime: { fw: 99, fh: 35, cx: 49, fy: 35, h: 20 },
+  bat: { fw: 67, fh: 55, cx: 33, fy: 55, h: 55 },
+  mimic: { fw: 69, fh: 44, cx: 34, fy: 44, h: 11 },
 };
