@@ -3,7 +3,7 @@
 3칸 소환 슬롯 + 자동전투 성장 게임. 유닛을 소환·합성·강화해 8개 지역 56개 전투(지역당 일반 5 + 정예 1 + 보스 1)를 공략합니다.
 
 ## 플레이
-공개 플레이 주소는 별도 게시(Instinct Files)로 제공됩니다.
+플레이: https://files.instinct.com/45t9ymtwk2hf
 
 ## 구조
 - `src/`: 게임 소스 (React + TypeScript + Canvas)
