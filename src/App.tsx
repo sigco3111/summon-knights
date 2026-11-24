@@ -9,6 +9,8 @@ import bghollow from './photos/hollow.png';
 import bgmesa from './photos/mesa.png';
 import bgkiln from './photos/kiln.png';
 import bgsodium from './photos/sodium.png';
+import fontRegular from './fonts/Galmuri11.woff2';
+import fontBold from './fonts/Galmuri11-Bold.woff2';
 const BG_SRC: Record<string, string> = { grotto, forest: bgforest, canopy: bgcanopy, tundra: bgtundra, hollow: bghollow, mesa: bgmesa, kiln: bgkiln, sodium: bgsodium };
 import {
     ALLIES, REGIONS, RARITY_NAME, RARITY_COLOR, STAGES_PER_REGION, W, H, MAX_LV, MAX_ENH, buildStage, cellPos, drawBattle, iconDraw, allUrls, registerImg,
@@ -74,19 +76,29 @@ export function App() {
     // (이전: 숨겨진 <img> 150개 동시 요청 + onError 미처리 → 하나라도 실패하면 영구 '불러오는 중')
     useEffect(() => {
         let cancelled = false;
-        const jobs: { key: string; src: string; bg?: string }[] = [
+        const jobs: { key: string; src: string; bg?: string; font?: string }[] = [
+            { key: 'font:400', src: fontRegular, font: '400' },
+            { key: 'font:700', src: fontBold, font: '700' },
             ...urls.map((u) => ({ key: u, src: u })),
             ...Object.entries(BG_SRC).map(([k, src]) => ({ key: `bg:${k}`, src, bg: k })),
         ];
         const total = jobs.length;
         let idx = 0; let done = 0; let failed = 0;
-        const loadOne = (job: { key: string; src: string; bg?: string }) => new Promise<void>((resolve) => {
+        const loadOne = (job: { key: string; src: string; bg?: string; font?: string }) => new Promise<void>((resolve) => {
             let attempt = 0;
             const tryLoad = () => {
                 if (cancelled) return resolve();
                 // 호스트가 <img> 직접 요청을 간헐 거부하는 문제가 있어 fetch→blob URL로 로드한다.
                 fetch(job.src).then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.blob(); }).then((blob) => {
                     if (cancelled) return resolve();
+                    if (job.font) {
+                        // 폰트는 FontFace로 등록(CSS url()은 빌드 제약으로 사용 불가)
+                        blob.arrayBuffer().then((buf) => {
+                            const face = new FontFace('Galmuri11', buf, { weight: job.font });
+                            return face.load().then((f) => { document.fonts.add(f); });
+                        }).then(() => { done += 1; if (!cancelled) setLoadProg(done); resolve(); }).catch(() => retry());
+                        return;
+                    }
                     const ou = URL.createObjectURL(blob);
                     const el = new Image();
                     el.onload = () => {
@@ -234,13 +246,14 @@ export function App() {
             <button type="button" className="sb-stage" onClick={() => setMap(true)} disabled={phase === 'battle'}><b>{reg.id} {reg.name}</b><span>{stage.label} {stage.kind}</span></button>
             <div className="sb-res"><span className="sb-coin" title="소환 코인">●</span><b>{coins}</b><span className="sb-shard" title="강화 조각">◆</span><b>{shards}</b></div>
         </div>
-        <div className={`sb-save${saved.ready ? '' : ' warn'}`} role="status">{saved.ready ? (/not saved/i.test(saved.message || '') ? '저장 불가: 창을 닫으면 진행이 사라집니다. 지역 메뉴의 저장 코드를 보관하세요.' : '이 기기에 자동 저장됩니다.') + (saved.message ? ` (${saved.message})` : '') : '저장 상태 확인 중'}</div>
+        <div className="sb-cabinet">
         <div className="sb-field">
             <canvas ref={canvasRef} width={W} height={H} className="sb-canvas" onPointerDown={onCanvas} aria-label="전장" />
             {phase === 'battle' && <div className="sb-prog"><i style={{ width: `${kills[1] ? (kills[0] / kills[1]) * 100 : 0}%` }} /><span>{kills[0]}/{kills[1]}</span></div>}
             {(phase === 'win' || phase === 'lose') && <div className={`sb-result ${phase}`}>{phase === 'win' ? '승리' : '패배'}<small>{msg}</small></div>}
-            {!ready && <div className="sb-result">{loadError ? '일부 에셋을 불러오지 못했습니다. 새로고침 해주세요.' : `불러오는 중 ${loadProg}/${urls.length + 8}`}</div>}
+            {!ready && <div className="sb-result">{loadError ? '일부 에셋을 불러오지 못했습니다. 새로고침 해주세요.' : `불러오는 중 ${loadProg}/${urls.length + 10}`}</div>}
         </div>
+        <aside className="sb-side">
         <div className="sb-syn">
             {ROLES.map((r) => <span key={r} className={syn[r] ? 'on' : ''}>{r} {syn[r] || 0}{synergyBonus(syn[r] || 0) ? <em>+{Math.round(synergyBonus(syn[r]) * 100)}%</em> : null}</span>)}
             <span className="cnt">출전 {board.length}/{MAX_BOARD}</span>
@@ -249,12 +262,6 @@ export function App() {
         <div className="sb-slot">
             <div className="sb-reels">{reels.map((r, i) => <div key={i} className={`sb-reel${spinning ? ' is-spin' : ''}`}>{r === null ? <span>?</span> : <Icon sheet={ALLIES[r].sheet} ready={ready} />}</div>)}</div>
             <button type="button" className="sb-btn sb-summon" disabled={spinning || phase === 'battle' || coins < SUMMON_COST || !ready || !saved.ready} onClick={summon}>소환<small>● {SUMMON_COST}</small></button>
-        </div>
-        <div className="sb-bench">
-            {bench.length === 0 && <span className="sb-empty">벤치 비어 있음</span>}
-            {bench.map((u) => <button type="button" key={u.uid} className={`sb-unit${sel === u.uid ? ' is-sel' : ''}`} style={{ borderColor: RARITY_COLOR[u.rarity] }} onClick={() => setSel(sel === u.uid ? null : u.uid)}>
-                <Icon sheet={u.def.sheet} ready={ready} lv={u.lv} /><span className="sb-lv">{'★'.repeat(u.lv)}{u.enh ? ` +${u.enh}` : ''}</span><small>{u.def.role}</small>
-            </button>)}
         </div>
         {selUnit && <div className="sb-info">
             <div><b>{selUnit.def.name}</b> <span style={{ color: RARITY_COLOR[selUnit.rarity] }}>{RARITY_NAME[selUnit.rarity]}</span> · {selUnit.def.role} · Lv{selUnit.lv}<br />체력 {Math.round(selUnit.def.hp * unitMult(selUnit))} 공격 {Math.round(selUnit.def.atk * unitMult(selUnit))}{selUnit.def.heal ? ` 치유 ${Math.round(selUnit.def.heal * unitMult(selUnit))}` : ''} · 칸을 눌러 배치</div>
@@ -266,6 +273,15 @@ export function App() {
             {phase === 'win' && <><button type="button" className="sb-btn go" onClick={next}>다음 전투</button><button type="button" className="sb-btn ghost" onClick={() => toPrep()}>정비</button></>}
             {phase === 'lose' && <button type="button" className="sb-btn go" onClick={() => toPrep()}>다시 준비</button>}
         </div>
+        <div className={`sb-save${saved.ready ? '' : ' warn'}`} role="status">{saved.ready ? (/not saved/i.test(saved.message || '') ? '저장 불가: 창을 닫으면 진행이 사라집니다. 지역 메뉴의 저장 코드를 보관하세요.' : '이 기기에 자동 저장됩니다.') + (saved.message ? ` (${saved.message})` : '') : '저장 상태 확인 중'}</div>
+        </aside>
+        </div>
+        <div className="sb-bench">
+            {bench.length === 0 && <span className="sb-empty">벤치 비어 있음</span>}
+            {bench.map((u) => <button type="button" key={u.uid} className={`sb-unit${sel === u.uid ? ' is-sel' : ''}`} style={{ borderColor: RARITY_COLOR[u.rarity] }} onClick={() => setSel(sel === u.uid ? null : u.uid)}>
+                <Icon sheet={u.def.sheet} ready={ready} lv={u.lv} /><span className="sb-lv">{'★'.repeat(u.lv)}{u.enh ? ` +${u.enh}` : ''}</span><small>{u.def.role}</small>
+            </button>)}
+        </div>
         {map && <div className="sb-map" role="dialog" aria-label="지역">
             <div className="sb-maphead"><b>지역</b><button type="button" className="sb-btn sm ghost" onClick={() => setMap(false)}>닫기</button></div>
             {REGIONS.map((r, ri) => <div key={r.id} className={`sb-reg${ri === region ? ' cur' : ''}${r.ready ? '' : ' lock'}`}>
@@ -276,7 +292,7 @@ export function App() {
                 <textarea value={xfer} onChange={(e) => setXfer(e.target.value)} rows={3} aria-label="저장 코드" />
                 <div><button type="button" className="sb-btn sm ghost" onClick={exportSave}>내보내기</button> <button type="button" className="sb-btn sm ghost" onClick={importSave} disabled={phase === 'battle' || !xfer}>불러오기</button></div></div>
             <button type="button" className="sb-btn sm ghost" onClick={resetAll}>진행 초기화</button>
-            <p className="sb-credit">스프라이트: LuizMelo 팩(Hero Knight 1-2, Fantasy Warrior, Medieval Warrior 1-3, Medieval King 1-2, Martial Hero 1-3, Huntress 1-2, Evil Wizard 1-3, Fire Worm, Monsters Creatures Fantasy 1-2), Wizard Pack. 보스(3-8지역): chierit (CC-BY 4.0) — Boss: Demon Slime, Boss: Frost Guardian, Free Cthulhu, Elementals: Crystal Mauler / Fire Knight / Wind Hashashin (chierit.itch.io). 배경: Super Grotto Escape(ansimuz, CC0), Dark Forest, VISTA-ten.</p>
+            <p className="sb-credit">스프라이트: LuizMelo 팩(Hero Knight 1-2, Fantasy Warrior, Medieval Warrior 1-3, Medieval King 1-2, Martial Hero 1-3, Huntress 1-2, Evil Wizard 1-3, Fire Worm, Monsters Creatures Fantasy 1-2), Wizard Pack. 보스(3-8지역): chierit (CC-BY 4.0) — Boss: Demon Slime, Boss: Frost Guardian, Free Cthulhu, Elementals: Crystal Mauler / Fire Knight / Wind Hashashin (chierit.itch.io). 배경: 8개 지역 모두 AI 생성(쿼터뷰 전장 배경).</p>
         </div>}
     </div>;
 }

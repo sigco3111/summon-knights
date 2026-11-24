@@ -19,22 +19,22 @@ export interface UnitDef {
 }
 
 export const ALLIES: UnitDef[] = [
-    { id: 'knight', sheet: 'hk', name: 'Hero Knight', role: '전열', hp: 260, atk: 14, cd: 1000, range: 54, face: 1, px: 50, desc: '맨 앞에서 버티는 기사' },
-    { id: 'warrior', sheet: 'fw', name: 'Fantasy Warrior', role: '전열', hp: 210, atk: 20, cd: 900, range: 54, face: 1, px: 48, desc: '체력과 공격이 균형 잡힌 전사' },
-    { id: 'martial', sheet: 'mh', name: 'Martial Hero', role: '딜러', hp: 150, atk: 30, cd: 800, range: 54, face: 1, px: 52, desc: '근접 고화력 딜러' },
-    { id: 'huntress', sheet: 'hu', name: 'Huntress', role: '원거리', hp: 120, atk: 22, cd: 900, range: 200, face: 1, ranged: 'spear', px: 46, desc: '창을 던지는 원거리' },
-    { id: 'wizard', sheet: 'wz', name: 'Wizard', role: '지원', hp: 110, atk: 10, cd: 1400, range: 200, face: 1, ranged: 'orb', heal: 26, px: 50, desc: '아군을 치유하는 지원' },
-    { id: 'mwarrior1', sheet: 'mw1', name: 'Medieval Warrior', role: '전열', hp: 220, atk: 18, cd: 950, range: 54, face: 1, px: 50, desc: '검과 방패의 균형 전사' },
-    { id: 'mwarrior2', sheet: 'mw2', name: 'Medieval Warrior 2', role: '전열', hp: 230, atk: 17, cd: 950, range: 54, face: 1, px: 50, desc: '단단한 중검 전사' },
-    { id: 'mwarrior3', sheet: 'mw3', name: 'Medieval Warrior 3', role: '전열', hp: 215, atk: 19, cd: 900, range: 54, face: 1, px: 50, desc: '빠른 검술의 전사' },
-    { id: 'mking1', sheet: 'mk1', name: 'Medieval King', role: '전열', hp: 280, atk: 15, cd: 1100, range: 54, face: 1, px: 54, desc: '높은 체력의 왕' },
-    { id: 'mking2', sheet: 'mk2', name: 'Medieval King 2', role: '전열', hp: 290, atk: 16, cd: 1100, range: 54, face: 1, px: 54, desc: '전선을 지키는 왕' },
-    { id: 'hknight2', sheet: 'hk2', name: 'Hero Knight 2', role: '전열', hp: 250, atk: 16, cd: 1000, range: 54, face: 1, px: 50, desc: '돌진하는 기사' },
-    { id: 'martial2', sheet: 'mh2', name: 'Martial Hero 2', role: '딜러', hp: 145, atk: 32, cd: 800, range: 54, face: 1, px: 52, desc: '연속 타격 딜러' },
-    { id: 'martial3', sheet: 'mh3', name: 'Martial Hero 3', role: '딜러', hp: 140, atk: 34, cd: 780, range: 54, face: 1, px: 52, desc: '극화력 격투가' },
-    { id: 'huntress2', sheet: 'hu2', name: 'Huntress 2', role: '원거리', hp: 115, atk: 24, cd: 880, range: 200, face: 1, ranged: 'spear', px: 46, desc: '화살을 쏘는 원거리' },
-    { id: 'ewizard1', sheet: 'ew', name: 'Evil Wizard', role: '원거리', hp: 105, atk: 26, cd: 1100, range: 200, face: 1, ranged: 'orb', px: 50, desc: '마법 구체의 원거리 딜러' },
-    { id: 'ewizard2', sheet: 'ew2', name: 'Evil Wizard 2', role: '원거리', hp: 100, atk: 28, cd: 1080, range: 200, face: 1, ranged: 'orb', px: 50, desc: '강력한 마법의 원거리 딜러' },
+    { id: 'knight', sheet: 'hk', name: '영웅 기사', role: '전열', hp: 260, atk: 14, cd: 1000, range: 54, face: 1, px: 50, desc: '맨 앞에서 버티는 기사' },
+    { id: 'warrior', sheet: 'fw', name: '검술 전사', role: '전열', hp: 210, atk: 20, cd: 900, range: 54, face: 1, px: 48, desc: '체력과 공격이 균형 잡힌 전사' },
+    { id: 'martial', sheet: 'mh', name: '무투가', role: '딜러', hp: 150, atk: 30, cd: 800, range: 54, face: 1, px: 52, desc: '근접 고화력 딜러' },
+    { id: 'huntress', sheet: 'hu', name: '사냥꾼', role: '원거리', hp: 120, atk: 22, cd: 900, range: 200, face: 1, ranged: 'spear', px: 46, desc: '창을 던지는 원거리' },
+    { id: 'wizard', sheet: 'wz', name: '수호 마법사', role: '지원', hp: 110, atk: 10, cd: 1400, range: 200, face: 1, ranged: 'orb', heal: 26, px: 50, desc: '아군을 치유하는 지원' },
+    { id: 'mwarrior1', sheet: 'mw1', name: '중세 전사', role: '전열', hp: 220, atk: 18, cd: 950, range: 54, face: 1, px: 50, desc: '검과 방패의 균형 전사' },
+    { id: 'mwarrior2', sheet: 'mw2', name: '중검 전사', role: '전열', hp: 230, atk: 17, cd: 950, range: 54, face: 1, px: 50, desc: '단단한 중검 전사' },
+    { id: 'mwarrior3', sheet: 'mw3', name: '속검 전사', role: '전열', hp: 215, atk: 19, cd: 900, range: 54, face: 1, px: 50, desc: '빠른 검술의 전사' },
+    { id: 'mking1', sheet: 'mk1', name: '기사왕', role: '전열', hp: 280, atk: 15, cd: 1100, range: 54, face: 1, px: 54, desc: '높은 체력의 왕' },
+    { id: 'mking2', sheet: 'mk2', name: '수호왕', role: '전열', hp: 290, atk: 16, cd: 1100, range: 54, face: 1, px: 54, desc: '전선을 지키는 왕' },
+    { id: 'hknight2', sheet: 'hk2', name: '돌진 기사', role: '전열', hp: 250, atk: 16, cd: 1000, range: 54, face: 1, px: 50, desc: '돌진하는 기사' },
+    { id: 'martial2', sheet: 'mh2', name: '연격 무투가', role: '딜러', hp: 145, atk: 32, cd: 800, range: 54, face: 1, px: 52, desc: '연속 타격 딜러' },
+    { id: 'martial3', sheet: 'mh3', name: '권왕', role: '딜러', hp: 140, atk: 34, cd: 780, range: 54, face: 1, px: 52, desc: '극화력 격투가' },
+    { id: 'huntress2', sheet: 'hu2', name: '명궁 사냥꾼', role: '원거리', hp: 115, atk: 24, cd: 880, range: 200, face: 1, ranged: 'spear', px: 46, desc: '화살을 쏘는 원거리' },
+    { id: 'ewizard1', sheet: 'ew', name: '망령 마법사', role: '원거리', hp: 105, atk: 26, cd: 1100, range: 200, face: 1, ranged: 'orb', px: 50, desc: '마법 구체의 원거리 딜러' },
+    { id: 'ewizard2', sheet: 'ew2', name: '저주 마법사', role: '원거리', hp: 100, atk: 28, cd: 1080, range: 200, face: 1, ranged: 'orb', px: 50, desc: '강력한 마법의 원거리 딜러' },
 ];
 
 export interface EnemyDef {
