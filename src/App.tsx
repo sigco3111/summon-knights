@@ -89,6 +89,7 @@ export function App() {
     const [phase, setPhase] = useState<'prep' | 'battle' | 'win' | 'lose'>('prep');
     const [grid, setGrid] = useState<GridCell[] | null>(null);
     const [view, setView] = useState<GridCell[] | null>(null);
+    const [capBlock, setCapBlock] = useState(false);
     const [pend, setPend] = useState<{ grid: GridCell[]; rerolled: boolean } | null>(null);
     const [held, setHeld] = useState<boolean[]>([false, false, false]);
     const [spinning, setSpinning] = useState(false); const [reelStop, setReelStop] = useState(3); const [tense, setTense] = useState(false);
@@ -262,7 +263,7 @@ export function App() {
             const el = performance.now() - t0; { const n = stopAt.filter((x, ci) => el >= x || (base && keep[ci])).length; setReelStop((p) => (p === n ? p : n)); }
             setView(Array.from({ length: 9 }, (_, i) => (el >= stopAt[i % 3] || (base && keep[i % 3]) ? fin[i] : rollCell())));
             if (el >= stopAt[2] + 40) {
-                clearInterval(iv); setReelStop(3); setTense(false); setView(fin); setGrid(fin); setSpinning(false); setPend({ grid: fin, rerolled: false }); { const e = evalGrid(fin); if (!(e.units || e.shards)) setCoins((c) => c + 1); setMsg(e.units || e.shards ? '한 줄 같은 아이콘 = 소환 (◆줄 = 코인)' : '무당첨 · 환급 ●1 · 리롤 ●1 또는 다시 소환'); };
+                clearInterval(iv); setReelStop(3); setTense(false); setView(fin); setGrid(fin); setSpinning(false); setCapBlock(false); setPend({ grid: fin, rerolled: false }); { const e = evalGrid(fin); if (!(e.units || e.shards)) setCoins((c) => c + 1); setMsg(e.units || e.shards ? '한 줄 같은 아이콘 = 소환 (◆줄 = 코인)' : '무당첨 · 환급 ●1 · 리롤 ●1 또는 다시 소환'); };
             }
         }, 80);
         void cols;
@@ -275,23 +276,24 @@ export function App() {
         const mk = (sym: number) => { const p = rollSymbolUnit(sym); made.push({ uid: uidSeq++, def: p.def, rarity: p.r, cell: -1, lv: 1, enh: 0, abs: 1 }); };
         if (cores.includes('duo') && lineWins.length >= 2) { mk(g[lineWins[0].cells[0]].u); cx.push('쌍줄 코어: +1기'); }
         if (cores.includes('quad')) { const seen = new Set<number>(); for (const w of lineWins) { const sym = g[w.cells[0]].u; if (seen.has(sym)) continue; seen.add(sym); if (g.filter((c) => c.u === sym).length >= 4) { mk(sym); cx.push('다중 심볼 코어: +1기'); } } }
+        { let onb = board.length, ros = units.length;
+          for (const mu of made) { if (onb < MAX_UNITS) { onb++; ros++; } else if (!units.some((x) => !x.off && x.def.id === mu.def.id)) ros++; }
+          if (ros > MAX_ROSTER) { setCapBlock(true); setMsg(`보유 한도 부족: 이번 당첨 ${made.length}기를 받으면 ${ros}/${MAX_ROSTER}라 확정할 수 없습니다. 당첨은 그대로 보존됩니다(전투는 진행 가능). 흡수로 ${ros - MAX_ROSTER}자리 이상 비운 뒤 소환 확정을 누르세요`); return; } }
         if (cores.includes('tri') && lineWins.length >= 3) { setCoins((c) => c + 3); cx.push('삼연 코어: 코인 +3'); }
         const bonus = Math.round(ev.shards * 0.6); if (bonus) setCoins((c) => c + bonus);
         const parts: string[] = [];
-        let list = [...units]; let benched = 0; let overflow = 0; const slotUp: string[] = []; const entered: Unit[] = [];
+        let list = [...units]; let benched = 0; const slotUp: string[] = []; const entered: Unit[] = [];
         for (const mu of made) {
-            if (list.length >= MAX_ROSTER && !list.some((x) => !x.off && x.def.id === mu.def.id)) { overflow++; continue; }
             if (list.filter((x) => !x.off).length < MAX_UNITS) { list.push(mu); entered.push(mu); continue; }
             const tgt = list.filter((x) => !x.off && x.def.id === mu.def.id).sort((p, q) => (q.abs || 1) - (p.abs || 1))[0];
             if (tgt) { const { t2, gain } = absorbCalc(tgt, mu); list = list.map((x) => (x.uid === tgt.uid ? t2 : x)); slotUp.push(`${tgt.def.name}|${gain}|${t2.lv}`); }
-            else if (list.length >= MAX_ROSTER) { overflow++; } else { list.push({ ...mu, off: true }); benched++; }
+            else { list.push({ ...mu, off: true }); benched++; }
         }
         const br = battleRef.current; if (phase === 'battle' && br && !br.result) { const on = list.filter((x) => !x.off); entered.forEach((u) => addAllyToBattle(br, u, on, cores, ups)); if (lineWins.length) lineSurge(br, lineWins.length, g[lineWins[0].cells[0]].u); setSurgePct(Math.round(((br.surge || 1) - 1) * 100)); if (lineWins.length) { const id = ++boonId.current; setBoonOffer({ lines: lineWins.length, id }); const nl = lineWins.length; setTimeout(() => { if (boonId.current === id) { const b2 = battleRef.current; if (b2 && !b2.result) { applyBoon(b2, 'atk', nl); setMsg('줄 강화 자동 적용: 공격 +10% x'+nl+'줄 (우리 설계·임시)'); } setBoonOffer((o) => (o && o.id === id ? null : o)); } }, 6000); } }
         if (made.length) parts.push(`${ev.wins.filter((w) => w.kind === 'line').length}줄 소환 ${made.length}기`); if (phase === 'battle' && lineWins.length) parts.push(`줄 기세 공격 +${lineWins.length * 6}%(당첨 심볼 계열 +${lineWins.length * 12}%)·체력 회복`); if (bonus) parts.push(`◆줄 코인 +${bonus}`); parts.push(...cx);
         setMsg(parts.join(' · ') + (slotUp.length ? ` · ${Object.entries(slotUp.reduce((m: Record<string, [number, number]>, s) => { const [n, gn, lv] = s.split('|'); const p = m[n] || [0, 0]; m[n] = [p[0] + Number(gn), Math.max(p[1], Number(lv))]; return m; }, {})).map(([n, v]) => `${n} 슬롯 강화 +${v[0]}${v[1] > 1 ? ` (★${v[1]})` : ''}`).join(', ')}` : '') + (benched ? ` · 출전 ${MAX_UNITS}기 가득: ${benched}기는 대기(유닛 선택 후 교체 가능)` : ''));
-        if (overflow) { setCoins((c) => c + overflow * 3); setMsg((m) => `${m} · 보유 한도 초과 ${overflow}기는 코인 +${overflow * 3}으로 전환 (우리 설계·임시)`); }
         setUnits(list);
-        setPend(null); setFlash(true); setUndo(null); setTimeout(() => setFlash(false), 900);
+        setCapBlock(false); setPend(null); setFlash(true); setUndo(null); setTimeout(() => setFlash(false), 900);
     };
     const rerollCol = (c: number) => {
         if (!pend || pend.rerolled || coins < REROLL_COST) return;
@@ -436,10 +438,10 @@ export function App() {
     };
     // 자동 진행(끔이 기본): 승리 후 선택 보상이 없으면 잠시 뒤 다음 전투를 자동 시작. 보상 선택이 남아 있으면 선택 완료 후 이어서 진행(보상은 자동 선택하지 않음). 패배·엔딩·잠긴 지역·유닛 없음에서는 멈춤
     useEffect(() => {
-        if (!autoRun || phase !== 'win' || ending || pend) return;
+        if (!autoRun || phase !== 'win' || ending || (pend && !capBlock)) return;
         const id = window.setTimeout(() => { autoGo.current = true; next(); }, 1500);
         return () => window.clearTimeout(id);
-    }, [autoRun, phase, ending, pend]);
+    }, [autoRun, phase, ending, pend, capBlock]);
     useEffect(() => {
         if (!autoGo.current || phase !== 'prep') return;
         autoGo.current = false;
@@ -487,7 +489,7 @@ export function App() {
             <button type="button" className="sb-btn sb-summon" disabled={spinning || (units.length >= MAX_ROSTER && !(pend && (evalGrid(pend.grid).units || evalGrid(pend.grid).shards))) || ((!pend || !(evalGrid(pend.grid).units || evalGrid(pend.grid).shards)) && (coins < spinCost)) || !ready || !saved.ready} onClick={summon}>{pend && (evalGrid(pend.grid).units || evalGrid(pend.grid).shards) ? <>소환 확정<small>{evalGrid(pend.grid).units ? `${evalGrid(pend.grid).units}기` : `코인 +${Math.round(evalGrid(pend.grid).shards * 0.6)}`}</small></> : <>소환<small>{units.length >= MAX_ROSTER ? '보유 가득 · 흡수로 정리' : `● ${spinCost}`}</small></>}</button>
         </div>
         <div className="sb-bar">
-            {phase === 'prep' && <><button type="button" className="sb-btn go" disabled={!ready || !reg.ready || spinning || (!!pend && !!(evalGrid(pend.grid).units || evalGrid(pend.grid).shards))} onClick={() => { if (pend) { setPend(null); setHeld([false, false, false]); } startFight(); }}>{pend && (evalGrid(pend.grid).units || evalGrid(pend.grid).shards) ? '소환 확정 먼저' : '전투 시작'}</button></>}
+            {phase === 'prep' && <><button type="button" className="sb-btn go" disabled={!ready || !reg.ready || spinning || (!!pend && !capBlock && !!(evalGrid(pend.grid).units || evalGrid(pend.grid).shards))} onClick={() => { if (pend && !capBlock) { setPend(null); setHeld([false, false, false]); } startFight(); }}>{pend && (evalGrid(pend.grid).units || evalGrid(pend.grid).shards) ? (capBlock ? '전투 시작 (당첨 보류 유지)' : '소환 확정 먼저') : '전투 시작'}</button></>}
             {phase === 'battle' && <><button type="button" className="sb-btn go" disabled>전투 중</button><button type="button" className={`sb-btn ghost${speed > 1 ? ' on' : ''}`} onClick={() => setSpeed((v) => (v === 1 ? 2 : 1))} aria-pressed={speed > 1}>배속 ×{speed}</button></>}
             {phase === 'win' && <><button type="button" className="sb-btn go" onClick={next}>다음 전투</button><button type="button" className="sb-btn ghost" onClick={() => { toPrep(); setMsg('정비 모드: 이 전투를 다시 준비합니다(다음 전투로 넘어가지 않음). 소환·배치·강화 후 전투 시작을 누르세요'); document.querySelector('.sb-btn.go')?.scrollIntoView({ block: 'center', behavior: 'smooth' }); }}>정비(이 전투 다시 준비)</button></>}
             {phase === 'lose' && <button type="button" className="sb-btn go" onClick={() => toPrep()}>다시 준비</button>}
