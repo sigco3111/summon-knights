@@ -254,3 +254,11 @@ body { background: #120c1a; }
 .sb-cell.rolling { background: #d9ccaa; }
 .sb-cell.hit { animation: sbReelHit 260ms ease-out; }
 .sb-cell.tense { animation: sbTense 420ms ease-in-out infinite; border-color: #ff6a3c; }
+
+/* 모바일 가독성: 어두운 배경 위 안내문 대비, 코어 카드 이름 줄바꿈 방지 */
+.sb-app .sb-fnote{color:#e3d2a2;font-size:11px;line-height:15px}
+.sb-form .sb-fnote{color:#5e4826}
+.sb-info .sb-fnote{color:#e3d2a2}
+@media (max-width:480px){.sb-app .sb-fnote{font-size:11px;line-height:15px}}
+.sb-info .sb-btn.sm{flex-direction:column;align-items:flex-start;justify-content:center;gap:2px}
+.sb-info .sb-btn.sm small{white-space:normal;text-align:left;line-height:14px}
