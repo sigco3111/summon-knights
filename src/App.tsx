@@ -15,7 +15,7 @@ import fontRegular from './fonts/Galmuri11.woff2';
 import fontBold from './fonts/Galmuri11-Bold.woff2';
 const BG_SRC: Record<string, string> = { grotto, forest: bgforest, canopy: bgcanopy, tundra: bgtundra, hollow: bghollow, mesa: bgmesa, kiln: bgkiln, sodium: bgsodium };
 import {
-    ALLIES, MAX_UNITS, lineSurge, applyBoon, GRID_LINES, MAX_ROSTER, PROMOS2, PROMO2_DESC, REGIONS, RARITY_NAME, RARITY_COLOR, STAGES_PER_REGION, W, H, MAX_LV, MAX_ENH, STAR_AT, IMP_SLOTS, starOf, absFromStar, CORES, MAX_CORES, rollCores, addAllyToBattle, lineSurge, GIMMICKS, UPS, MAX_UP_STACK, rollUps, buildStage, cellPos, drawBattle, drawSprite, iconDraw, allUrls, registerImg,
+    ALLIES, MAX_UNITS, cycStageMult, lineSurge, applyBoon, GRID_LINES, MAX_ROSTER, PROMOS2, PROMO2_DESC, REGIONS, RARITY_NAME, RARITY_COLOR, STAGES_PER_REGION, W, H, MAX_LV, MAX_ENH, STAR_AT, IMP_SLOTS, starOf, absFromStar, CORES, MAX_CORES, rollCores, addAllyToBattle, lineSurge, GIMMICKS, UPS, MAX_UP_STACK, rollUps, buildStage, cellPos, drawBattle, drawSprite, iconDraw, allUrls, registerImg,
     rollRarity, rollUnit, startBattle, step, synergy, synergyBonus, unitMult, enhCost, shardValue, type Battle, type Unit,
   assignCells, optimizeFormation, autoPickBoard, unitPower, ENGRAVINGS, MAX_ENG, PROMOS, PROMO_DESC, engIndexOf, unitHp, unitAtk, unitHeal, unitMods, CELL_X, evalGrid, rollCell, rollSymbolUnit, SYMBOLS, LINE_SUMMON, SPECIAL_SHARDS, type GridCell,
 } from './game';
@@ -202,8 +202,8 @@ export function App() {
     const [diff, setDiffS] = useState<number>(() => { try { return Math.min(2, Math.max(0, parseInt(localStorage.getItem('sk-diff') || '0', 10) || 0)); } catch { return 0; } });
     const setDiff = (d: number) => { setDiffS(d); try { localStorage.setItem('sk-diff', String(d)); } catch { /* */ } };
     const DIFFS = [{ n: '이지', m: 1.3, r: 1, a: 2.5 }, { n: '노멀', m: 1.5, r: 1.4, a: 4 }, { n: '하드', m: 1.8, r: 2, a: 6 }]; // 우리 설계, 임시(미측정)
-    const cycAdd = 9 * (cycle - 1); const cycMult = cycAdd; const cycRew = 1 + 0.25 * (cycle - 1); // 회차 보정(우리 설계·임시, 미측정)
-    const stage = (() => { const s0 = buildStage(reg, stageIdx); const d = DIFFS[diff]; return { ...s0, atkBoost: (d as { a?: number }).a || 1, mult: (cycle > 1 ? 1 + (s0.mult - 1) * 0.3 + cycAdd : s0.mult) * d.m, reward: Math.round(s0.reward * d.r * cycRew) }; })();
+    const cycAdd = cycle > 1 ? 1 : 0; const cycMult = cycAdd; const cycRew = 1 + 0.25 * (cycle - 1); // 회차 보정(우리 설계·임시, 미측정)
+    const stage = (() => { const s0 = buildStage(reg, stageIdx); const d = DIFFS[diff]; return { ...s0, atkBoost: (d as { a?: number }).a || 1, mult: (cycle > 1 ? cycStageMult((Number(reg.id) - 1) * STAGES_PER_REGION + stageIdx, cycle) * (diff === 0 ? 1.7 : diff === 1 ? 1.3 : 1) : s0.mult) * d.m, reward: Math.round(s0.reward * d.r * cycRew) }; })();
 
     useEffect(() => {
         if (!ready) return;
@@ -544,7 +544,7 @@ export function App() {
         </div>
         <div className="sb-opts"><span className="sb-tag">자동 이동 전투</span>
         <div className="sb-optrow">난이도 {DIFFS.map((d, i) => <button key={d.n} disabled={phase === 'battle'} onClick={() => setDiff(i)} style={{ margin: '0 3px', padding: '1px 7px', fontWeight: i === diff ? 700 : 400, opacity: i === diff ? 1 : 0.6 }}>{d.n}</button>)} 적 강도 ×{DIFFS[diff].m}{(DIFFS[diff] as { a?: number }).a ? ` · 적 공격 추가 ×${(DIFFS[diff] as { a?: number }).a}` : ''} · 승리 코인 ×{DIFFS[diff].r} (우리 설계·임시, 미측정)</div>
-        <div className="sb-optrow"><b>{cycle}회차</b> 적 강도 기본치 +{cycAdd}(회차당 +9, 단계 상승폭은 30%, 난이도 배율 적용) · 승리 코인 ×{cycRew.toFixed(2)} (우리 설계·임시){cleared['8-7'] && !ending ? <button type="button" disabled={phase === 'battle'} onClick={startNextCycle} style={{ margin: '0 3px', padding: '1px 8px' }}>{confirmCycle ? '한 번 더 누르면 시작' : '다음 회차'}</button> : ' · 8-7 클리어 후 다음 회차 해금'}</div>
+        <div className="sb-optrow"><b>{cycle}회차</b> 적 강도 단계별 보정표 적용(2회차 하드 기준 아군 체력 약 절반 소모, 3회차부터 +60%씩) · 승리 코인 ×{cycRew.toFixed(2)} (우리 설계·임시){cleared['8-7'] && !ending ? <button type="button" disabled={phase === 'battle'} onClick={startNextCycle} style={{ margin: '0 3px', padding: '1px 8px' }}>{confirmCycle ? '한 번 더 누르면 시작' : '다음 회차'}</button> : ' · 8-7 클리어 후 다음 회차 해금'}</div>
         <div className="sb-autorow"><button type="button" role="switch" aria-checked={autoRun} className={'sb-switch' + (autoRun ? ' on' : '')} onClick={() => setAutoRun(!autoRun)}><span className="sb-knob" /><span className="sb-swlabel">자동 진행 {autoRun ? '켬' : '끔'}</span></button><div className="sb-autodesc">{autoRun ? ((upOffer || offer) ? `선택 보상은 쌓아 두고 진행합니다${upQ + coreQ > 0 ? ` (대기 ${upQ + coreQ}회)` : ''}. 아래에서 골라 주세요` : phase === 'lose' ? '패배해서 멈춤: 정비 후 직접 시작하세요' : (autoPick ? '승리하면 다음 전투를 자동 시작합니다(보상은 아래 자동 선택으로 처리)' : '승리하면 다음 전투를 자동 시작합니다(보상은 자동 선택하지 않고 쌓아 둠)')) : '끔: 직접 다음 전투/전투 시작을 누릅니다'}</div></div><div className="sb-autorow"><button type="button" role="switch" aria-checked={autoPick} className={'sb-switch' + (autoPick ? ' on' : '')} onClick={() => setAutoPick(!autoPick)}><span className="sb-knob" /><span className="sb-swlabel">보상 자동 선택 {autoPick ? '켬' : '끔'}</span></button><div className="sb-autodesc">{autoPick ? '강화/코어 보상을 자동으로 고릅니다(강화: 보유 수가 가장 적은 것, 코어: 제시 첫 번째 · 임시 기준)' : '끔: 보상은 직접 고릅니다. 자동 진행과 함께 켜면 패배/엔딩/소환 대기 전까지 계속 진행합니다'}</div></div>
         {GIMMICKS[reg.id] && <div className="sb-optrow">지역 기믹 [{GIMMICKS[reg.id]!.name}] {GIMMICKS[reg.id]!.desc} (우리 설계·임시)</div>}
         {ups.length > 0 && <div className="sb-optrow"><b>보유 강화</b> {UPS.filter((d) => ups.includes(d.id)).map((d) => `${d.name} x${ups.filter((x) => x === d.id).length}`).join(' · ')}</div>}
