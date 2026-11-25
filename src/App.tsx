@@ -14,7 +14,7 @@ import fontRegular from './fonts/Galmuri11.woff2';
 import fontBold from './fonts/Galmuri11-Bold.woff2';
 const BG_SRC: Record<string, string> = { grotto, forest: bgforest, canopy: bgcanopy, tundra: bgtundra, hollow: bghollow, mesa: bgmesa, kiln: bgkiln, sodium: bgsodium };
 import {
-    ALLIES, MAX_UNITS, MAX_ROSTER, PROMOS2, PROMO2_DESC, REGIONS, RARITY_NAME, RARITY_COLOR, STAGES_PER_REGION, W, H, MAX_LV, MAX_ENH, STAR_AT, IMP_SLOTS, starOf, absFromStar, CORES, MAX_CORES, rollCores, GIMMICKS, UPS, MAX_UP_STACK, rollUps, buildStage, cellPos, drawBattle, drawSprite, iconDraw, allUrls, registerImg,
+    ALLIES, MAX_UNITS, MAX_ROSTER, PROMOS2, PROMO2_DESC, REGIONS, RARITY_NAME, RARITY_COLOR, STAGES_PER_REGION, W, H, MAX_LV, MAX_ENH, STAR_AT, IMP_SLOTS, starOf, absFromStar, CORES, MAX_CORES, rollCores, addAllyToBattle, GIMMICKS, UPS, MAX_UP_STACK, rollUps, buildStage, cellPos, drawBattle, drawSprite, iconDraw, allUrls, registerImg,
     rollRarity, rollUnit, startBattle, step, synergy, synergyBonus, unitMult, enhCost, shardValue, type Battle, type Unit,
   assignCells, optimizeFormation, unitPower, ENGRAVINGS, MAX_ENG, PROMOS, PROMO_DESC, engIndexOf, unitHp, unitAtk, unitHeal, CELL_X, evalGrid, rollCell, rollSymbolUnit, SYMBOLS, LINE_SUMMON, SPECIAL_SHARDS, type GridCell,
 } from './game';
@@ -26,6 +26,18 @@ const MAX_BOARD = MAX_UNITS;
 let uidSeq = 1;
 const ROLES = ['전열', '딜러', '원거리', '지원'] as const;
 
+function absorbCalc(t: Unit, src: Unit): { t2: Unit; gain: number; note: string; abs: number } {
+    const gv = (r: number) => r + 1;
+    const ei = engIndexOf(src.def.role); const eng = (t.eng || [0, 0, 0, 0]).slice();
+    let gain = 1 + Math.floor((src.abs || 1) / 3);
+    (src.eng || []).forEach((l) => { if (l > 0) gain += gv(src.rarity) + l - 1; });
+    let note = '';
+    if (eng[ei] > 0 && eng[ei] < MAX_ENG) { eng[ei]++; note = `각인 ${ENGRAVINGS[ei].name} ${eng[ei]}단계`; }
+    else if (eng[ei] === 0 && eng.filter((x) => x > 0).length < IMP_SLOTS[t.rarity]) { eng[ei] = 1; note = `각인 ${ENGRAVINGS[ei].name} 1단계`; }
+    else { gain += gv(src.rarity); note = '각인 칸이 차서 흡수 레벨로 전환'; }
+    const abs = (t.abs || 1) + gain; const lv = Math.max(t.lv, starOf(t.rarity, abs));
+    return { t2: { ...t, eng, abs, lv }, gain, note, abs };
+}
 function Icon({ sheet, ready, lv = 1 }: { sheet: string; ready: boolean; lv?: number }) {
     const ref = useRef<HTMLCanvasElement>(null);
     useEffect(() => { if (ref.current && ready) iconDraw(ref.current, sheet, 38); }, [sheet, ready, lv]);
@@ -67,6 +79,7 @@ export function App() {
     const [cleared, setCleared] = useState<Record<string, boolean>>({});
     const [cores, setCores] = useState<string[]>([]); const coresRef = useRef<string[]>([]); coresRef.current = cores;
     const [offer, setOffer] = useState<string[] | null>(null);
+    const lootApplied = useRef(0);
     const [ups, setUps] = useState<string[]>([]); const upsRef = useRef<string[]>([]); upsRef.current = ups; const [upOffer, setUpOffer] = useState<string[] | null>(null);
     const [sel, setSel] = useState<number | null>(null);
     const hoverRef = useRef<number | null>(null);
@@ -188,6 +201,7 @@ export function App() {
                 for (let k = 0; k < speedRef.current; k++) step(b, dt);
                 if (b.events) { for (const e of b.events.splice(0)) fxRef.current?.add(e); } fxRef.current?.update(dt * speedRef.current);
                 acc += dt; if (acc > 150) { acc = 0; setKills([b.kills, b.total]); }
+                if (b.loot && b.loot > lootApplied.current) { const d = b.loot - lootApplied.current; lootApplied.current = b.loot; setCoins((c) => c + d); }
                 if (b.result && phaseRef.current === 'battle') {
                     setKills([b.kills, b.total]);
                     if (!b.rewarded) {
@@ -225,7 +239,7 @@ export function App() {
     };
     const summon = () => {
         if (pend) { const e = evalGrid(pend.grid); if (e.units || e.shards) { commit(pend.grid); return; } }
-        if (spinning || phase === 'battle' || coins < spinCost || units.length >= MAX_ROSTER) return;
+        if (spinning || coins < spinCost || units.length >= MAX_ROSTER) return;
         if (pend) setPend(null);
         setCoins((c) => c - spinCost); setSpins((n) => n + 1); setSpinning(true); setSel(null); setFlash(false);
         const base = grid; const keep = held.slice();
@@ -252,11 +266,17 @@ export function App() {
         if (cores.includes('quad')) { const seen = new Set<number>(); for (const w of lineWins) { const sym = g[w.cells[0]].u; if (seen.has(sym)) continue; seen.add(sym); if (g.filter((c) => c.u === sym).length >= 4) { mk(sym); cx.push('다중 심볼 코어: +1기'); } } }
         if (cores.includes('tri') && lineWins.length >= 3) { setCoins((c) => c + 3); cx.push('삼연 코어: 코인 +3'); }
         const bonus = Math.round(ev.shards * 0.6); if (bonus) setCoins((c) => c + bonus);
-        const r = { list: [...units, ...made], merged: [] as string[] }; const parts: string[] = [];
-        let list = r.list; let over = 0; let benched = 0;
-        { let on = units.filter((x) => !x.off).length; list = list.map((x) => { if (made.includes(x)) { if (on < MAX_UNITS) { on++; return x; } benched++; return { ...x, off: true }; } return x; }); }
+        const parts: string[] = [];
+        let list = [...units]; let benched = 0; const slotUp: string[] = []; const entered: Unit[] = [];
+        for (const mu of made) {
+            if (list.filter((x) => !x.off).length < MAX_UNITS) { list.push(mu); entered.push(mu); continue; }
+            const tgt = list.filter((x) => !x.off && x.def.id === mu.def.id).sort((p, q) => (q.abs || 1) - (p.abs || 1))[0];
+            if (tgt) { const { t2, gain } = absorbCalc(tgt, mu); list = list.map((x) => (x.uid === tgt.uid ? t2 : x)); slotUp.push(`${tgt.def.name} 슬롯 강화 +${gain}${t2.lv > tgt.lv ? ` ★${t2.lv}` : ''}`); }
+            else { list.push({ ...mu, off: true }); benched++; }
+        }
+        const br = battleRef.current; if (phase === 'battle' && br && !br.result) { const on = list.filter((x) => !x.off); entered.forEach((u) => addAllyToBattle(br, u, on, cores, ups)); }
         if (made.length) parts.push(`${ev.wins.filter((w) => w.kind === 'line').length}줄 소환 ${made.length}기`); if (bonus) parts.push(`◆줄 코인 +${bonus}`); parts.push(...cx);
-        setMsg(parts.join(' · ') + (r.merged.length ? ` · 합성! ${r.merged.join(', ')}` : '') + (benched ? ` · 출전 ${MAX_UNITS}기 가득: ${benched}기는 대기(유닛 선택 후 교체 가능)` : ''));
+        setMsg(parts.join(' · ') + (slotUp.length ? ` · ${slotUp.join(', ')}(출전 가득 시 같은 유닛이 나오면 자동 강화)` : '') + (benched ? ` · 출전 ${MAX_UNITS}기 가득: ${benched}기는 대기(유닛 선택 후 교체 가능)` : ''));
         setUnits(list);
         setPend(null); setFlash(true); setUndo(null); setTimeout(() => setFlash(false), 900);
     };
@@ -293,17 +313,9 @@ export function App() {
     const absorb = (srcUid: number) => {
         const t = units.find((u) => u.uid === absorbFor); const src = units.find((u) => u.uid === srcUid);
         if (!t || !src || t.uid === src.uid) return;
-        const gv = (r: number) => r + 1;
-        const ei = engIndexOf(src.def.role); const eng = (t.eng || [0, 0, 0, 0]).slice();
-        let gain = 1 + Math.floor((src.abs || 1) / 3);
-        (src.eng || []).forEach((l) => { if (l > 0) gain += gv(src.rarity) + l - 1; });
-        let note = '';
-        if (eng[ei] > 0 && eng[ei] < MAX_ENG) { eng[ei]++; note = `각인 ${ENGRAVINGS[ei].name} ${eng[ei]}단계`; }
-        else if (eng[ei] === 0 && eng.filter((x) => x > 0).length < IMP_SLOTS[t.rarity]) { eng[ei] = 1; note = `각인 ${ENGRAVINGS[ei].name} 1단계`; }
-        else { gain += gv(src.rarity); note = '각인 칸이 차서 흡수 레벨로 전환'; }
-        const abs = (t.abs || 1) + gain; const lv = Math.max(t.lv, starOf(t.rarity, abs));
-        setUnits(units.filter((u) => u.uid !== src.uid).map((u) => (u.uid === t.uid ? { ...u, eng, abs, lv } : u)));
-        setMsg(`${src.def.name} 흡수 → 흡수Lv +${gain} (${abs})${lv > t.lv ? ` · ★${lv} 상승!` : ''} · ${note}`); setAbsorbFor(null); setSel(t.uid);
+        const { t2, gain, note, abs } = absorbCalc(t, src);
+        setUnits(units.filter((u) => u.uid !== src.uid).map((u) => (u.uid === t.uid ? t2 : u)));
+        setMsg(`${src.def.name} 흡수 → 흡수Lv +${gain} (${abs})${t2.lv > t.lv ? ` · ★${t2.lv} 상승!` : ''} · ${note}`); setAbsorbFor(null); setSel(t.uid);
     };
 
     useEffect(() => {
@@ -312,7 +324,7 @@ export function App() {
     }, [units, phase, region, stageIdx, ready]); // eslint-disable-line
     const startFight = () => {
         if (!reg.ready || board.length === 0) { setMsg('먼저 소환해서 유닛을 모으세요'); return; }
-        battleRef.current = startBattle(board, stage, false, cores, ups); battleRef.current.events = []; fxRef.current?.clear(); setKills([0, stage.spawns.length]); setPhase('battle'); setMsg(''); setSel(null);
+        lootApplied.current = 0; battleRef.current = startBattle(board, stage, false, cores, ups); battleRef.current.events = []; fxRef.current?.clear(); setKills([0, stage.spawns.length]); setPhase('battle'); setMsg(''); setSel(null);
     };
     const toPrep = (nextStage?: number) => { battleRef.current = null; setPhase('prep'); if (nextStage !== undefined) setStageIdx(nextStage); setKills([0, 0]); setMsg('소환으로 유닛을 모으고 전투 시작'); };
     const next = () => {
@@ -356,7 +368,7 @@ export function App() {
                     : <button key={c} type="button" className={`sb-mini${held[c] ? ' on' : ''}`} disabled={spinning || !!pend || !grid} onClick={() => toggleHold(c)}>{held[c] ? '고정됨' : '고정'}</button>)}</div>
                 <div className="sb-gridctl">{[0, 1, 2].map((c) => <button key={c} type="button" className="sb-mini" disabled={!pend || nudges < 1 || spinning} onClick={() => nudge(c)}>넛지↓ {nudges}/{NUDGE_PER_WAVE}</button>)}</div>
             </div>
-            <button type="button" className="sb-btn sb-summon" disabled={spinning || (units.length >= MAX_ROSTER && !(pend && (evalGrid(pend.grid).units || evalGrid(pend.grid).shards))) || ((!pend || !(evalGrid(pend.grid).units || evalGrid(pend.grid).shards)) && (phase === 'battle' || coins < spinCost)) || !ready || !saved.ready} onClick={summon}>{pend && (evalGrid(pend.grid).units || evalGrid(pend.grid).shards) ? <>소환 확정<small>{evalGrid(pend.grid).units ? `${evalGrid(pend.grid).units}기` : `코인 +${Math.round(evalGrid(pend.grid).shards * 0.6)}`}</small></> : <>소환<small>{units.length >= MAX_ROSTER ? '보유 가득 · 흡수로 정리' : `● ${spinCost}`}</small></>}</button>
+            <button type="button" className="sb-btn sb-summon" disabled={spinning || (units.length >= MAX_ROSTER && !(pend && (evalGrid(pend.grid).units || evalGrid(pend.grid).shards))) || ((!pend || !(evalGrid(pend.grid).units || evalGrid(pend.grid).shards)) && (coins < spinCost)) || !ready || !saved.ready} onClick={summon}>{pend && (evalGrid(pend.grid).units || evalGrid(pend.grid).shards) ? <>소환 확정<small>{evalGrid(pend.grid).units ? `${evalGrid(pend.grid).units}기` : `코인 +${Math.round(evalGrid(pend.grid).shards * 0.6)}`}</small></> : <>소환<small>{units.length >= MAX_ROSTER ? '보유 가득 · 흡수로 정리' : `● ${spinCost}`}</small></>}</button>
         </div>
         <div className="sb-bar">
             {phase === 'prep' && <><button type="button" className="sb-btn go" disabled={!ready || !reg.ready || spinning || (!!pend && !!(evalGrid(pend.grid).units || evalGrid(pend.grid).shards))} onClick={() => { if (pend) { setPend(null); setHeld([false, false, false]); } startFight(); }}>{pend && (evalGrid(pend.grid).units || evalGrid(pend.grid).shards) ? '소환 확정 먼저' : '전투 시작'}</button></>}

@@ -147,7 +147,7 @@ export interface Proj { x: number; y: number; target: Fighter; dmg: number; kind
 export interface Float { x: number; y: number; text: string; color: string; t: number; }
 export interface Battle {
     fighters: Fighter[]; projs: Proj[]; floats: Float[]; time: number; spawned: number; stage: StageDef;
-    result: null | 'win' | 'lose'; camp?: boolean; kills: number; total: number; rewarded?: boolean;
+    result: null | 'win' | 'lose'; camp?: boolean; kills: number; total: number; rewarded?: boolean; loot?: number;
     events?: { k: 'hit' | 'death' | 'boss' | 'heal'; x: number; y: number; flip: boolean }[];
 }
 
@@ -220,19 +220,26 @@ export function coreMods(cores: string[], list: Unit[], u: Unit) {
     }
     return { hp, atk, heal };
 }
+export function makeAlly(u: Unit, i: number, list: Unit[], stage: StageDef, cores: string[], ups: string[]): Fighter {
+    const m = unitMult(u); const md0 = unitMods(u); const cm = coreMods(cores, list, u); const gm = GIMMICKS[stage.region]; const gr = gm && (!gm.role || gm.role === u.def.role); const um = upMods(ups); const md = { ...md0, hp: md0.hp * cm.hp * um.hp, atk: md0.atk * cm.atk * um.atk, heal: md0.heal * cm.heal * um.heal * (gr && gm!.heal ? gm!.heal : 1), cd: md0.cd * um.cd * (gr && gm!.cd ? gm!.cd : 1) };
+    md.atk *= gr && gm!.atk ? gm!.atk : 1; md.hp *= gr && gm!.hp ? gm!.hp : 1;
+    const x = 24 + Math.floor(i / 3) * 32 + (i % 3 === 1 ? 14 : 0); const y = CELL_Y[i % 3];
+    return {
+        team: 'a', key: `a${u.uid}`, sheet: u.def.sheet, x, y, baseX: x, hp: Math.round(u.def.hp * m * md.hp), maxHp: Math.round(u.def.hp * m * md.hp), atk: u.def.atk * m * md.atk, cd: u.def.cd * md.cd, range: u.def.range,
+        speed: ROLE_SPEED[u.def.role] || 40, px: u.def.px, face: 1, state: 'idle', t: Math.random() * 600, fired: false, cdLeft: 300 + Math.random() * 400, target: null, ranged: u.def.ranged, heal: u.def.heal ? u.def.heal * m * md.heal : undefined,
+        dead: false, fade: 1, hitT: 0, role: u.def.role, name: u.def.name, lv: u.lv,
+    };
+}
 export function startBattle(board: Unit[], stage: StageDef, camp = false, cores: string[] = [], ups: string[] = []): Battle {
     const list = board.slice(0, MAX_UNITS);
-    const fighters: Fighter[] = list.map((u, i) => {
-        const m = unitMult(u); const md0 = unitMods(u); const cm = coreMods(cores, list, u); const gm = GIMMICKS[stage.region]; const gr = gm && (!gm.role || gm.role === u.def.role); const um = upMods(ups); const md = { ...md0, hp: md0.hp * cm.hp * um.hp, atk: md0.atk * cm.atk * um.atk, heal: md0.heal * cm.heal * um.heal * (gr && gm!.heal ? gm!.heal : 1), cd: md0.cd * um.cd * (gr && gm!.cd ? gm!.cd : 1) };
-        md.atk *= gr && gm!.atk ? gm!.atk : 1; md.hp *= gr && gm!.hp ? gm!.hp : 1;
-        const x = 24 + Math.floor(i / 3) * 32 + (i % 3 === 1 ? 14 : 0); const y = CELL_Y[i % 3];
-        return {
-            team: 'a', key: `a${u.uid}`, sheet: u.def.sheet, x, y, baseX: x, hp: Math.round(u.def.hp * m * md.hp), maxHp: Math.round(u.def.hp * m * md.hp), atk: u.def.atk * m * md.atk, cd: u.def.cd * md.cd, range: u.def.range,
-            speed: ROLE_SPEED[u.def.role] || 40, px: u.def.px, face: 1, state: 'idle', t: Math.random() * 600, fired: false, cdLeft: 300 + Math.random() * 400, target: null, ranged: u.def.ranged, heal: u.def.heal ? u.def.heal * m * md.heal : undefined,
-            dead: false, fade: 1, hitT: 0, role: u.def.role, name: u.def.name, lv: u.lv,
-        };
-    });
-    return { fighters, projs: [], floats: [], time: 0, spawned: 0, stage, result: null, kills: 0, total: stage.spawns.length, camp };
+    const fighters: Fighter[] = list.map((u, i) => makeAlly(u, i, list, stage, cores, ups));
+    return { fighters, projs: [], floats: [], time: 0, spawned: 0, stage, result: null, kills: 0, total: stage.spawns.length, camp, loot: 0 };
+}
+/** 전투 중 소환: 새 유닛을 즉시 전장에 투입(슬롯은 웨이브 중에도 돌릴 수 있다). */
+export function addAllyToBattle(b: Battle, u: Unit, list: Unit[], cores: string[], ups: string[]) {
+    if (b.result) return;
+    const n = b.fighters.filter((f) => f.team === 'a').length;
+    const f = makeAlly(u, n % MAX_UNITS, list, b.stage, cores, ups); f.x = 6; f.baseX = 6; f.cdLeft = 200; b.fighters.push(f);
 }
 
 function spawnEnemy(b: Battle, id: string) {
@@ -254,7 +261,7 @@ function damage(b: Battle, f: Fighter, dmg: number) {
     f.hp -= dmg;
     b.events?.push({ k: 'hit', x: f.x, y: f.y - f.px * 0.5, flip: f.team === 'e' });
     b.floats.push({ x: f.x, y: f.y - f.px - 4, text: String(Math.round(dmg)), color: f.team === 'e' ? '#fff3b0' : '#ff9a8a', t: 0 });
-    if (f.hp <= 0) { f.dead = true; f.state = 'die'; f.t = 0; if (f.team === 'e') b.kills++; b.events?.push({ k: f.boss ? 'boss' : 'death', x: f.x, y: f.y - 4, flip: false }); }
+    if (f.hp <= 0) { f.dead = true; f.state = 'die'; f.t = 0; if (f.team === 'e') { b.kills++; b.loot = (b.loot || 0) + (f.boss ? 6 : 1); } b.events?.push({ k: f.boss ? 'boss' : 'death', x: f.x, y: f.y - 4, flip: false }); }
     else if (f.state !== 'atk') { f.state = 'hit'; f.t = 0; }
 }
 
