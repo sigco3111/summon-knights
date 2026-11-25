@@ -115,7 +115,7 @@ export const STAGES_PER_REGION = 7; // 일반 5 + 정예 1 + 보스 1
 
 export interface StageDef { region: number; index: number; kind: '일반' | '정예' | '보스'; label: string; spawns: { id: string; at: number }[]; mult: number; reward: number; atkBoost?: number; sw?: number; }
 
-export const TUNE = { count: 1.4, open: 10, gap: 0.9, lateFrom: 6, lateCount: 1.8, lateOpen: 12, lateStat: 0.5, burstMs: 200 }; // 적 수 조정(우리 설계·임시): 전체 수 배율, 초반 몰려오는 수, 이후 간격 배율
+export const TUNE = { count: 1.8, open: 16, gap: 0.9, lateFrom: 6, lateCount: 1.8, lateOpen: 14, lateStat: 0.5, burstMs: 200 }; // 적 수 조정(우리 설계·임시): 전체 수 배율, 초반 몰려오는 수, 이후 간격 배율
 export function buildStage(region: RegionDef, index: number): StageDef {
     const kind: StageDef['kind'] = index === STAGES_PER_REGION - 1 ? '보스' : index === STAGES_PER_REGION - 2 ? '정예' : '일반';
     const global = (region.id - 1) * STAGES_PER_REGION + index;
