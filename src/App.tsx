@@ -275,22 +275,21 @@ export function App() {
         const mk = (sym: number) => { const p = rollSymbolUnit(sym); made.push({ uid: uidSeq++, def: p.def, rarity: p.r, cell: -1, lv: 1, enh: 0, abs: 1 }); };
         if (cores.includes('duo') && lineWins.length >= 2) { mk(g[lineWins[0].cells[0]].u); cx.push('쌍줄 코어: +1기'); }
         if (cores.includes('quad')) { const seen = new Set<number>(); for (const w of lineWins) { const sym = g[w.cells[0]].u; if (seen.has(sym)) continue; seen.add(sym); if (g.filter((c) => c.u === sym).length >= 4) { mk(sym); cx.push('다중 심볼 코어: +1기'); } } }
-        { let onb = board.length, ros = units.length;
-          for (const mu of made) { if (onb < MAX_UNITS) { onb++; ros++; } else if (!units.some((x) => !x.off && x.def.id === mu.def.id)) ros++; }
-          if (ros > MAX_ROSTER) { setMsg(`보유 한도 부족: 이번 당첨 ${made.length}기를 받으면 ${ros}/${MAX_ROSTER}라 확정할 수 없습니다. 당첨은 보존됩니다. 흡수로 ${ros - MAX_ROSTER}자리 이상 비운 뒤 소환 확정을 누르세요`); return; } }
         if (cores.includes('tri') && lineWins.length >= 3) { setCoins((c) => c + 3); cx.push('삼연 코어: 코인 +3'); }
         const bonus = Math.round(ev.shards * 0.6); if (bonus) setCoins((c) => c + bonus);
         const parts: string[] = [];
-        let list = [...units]; let benched = 0; const slotUp: string[] = []; const entered: Unit[] = [];
+        let list = [...units]; let benched = 0; let overflow = 0; const slotUp: string[] = []; const entered: Unit[] = [];
         for (const mu of made) {
+            if (list.length >= MAX_ROSTER && !list.some((x) => !x.off && x.def.id === mu.def.id)) { overflow++; continue; }
             if (list.filter((x) => !x.off).length < MAX_UNITS) { list.push(mu); entered.push(mu); continue; }
             const tgt = list.filter((x) => !x.off && x.def.id === mu.def.id).sort((p, q) => (q.abs || 1) - (p.abs || 1))[0];
             if (tgt) { const { t2, gain } = absorbCalc(tgt, mu); list = list.map((x) => (x.uid === tgt.uid ? t2 : x)); slotUp.push(`${tgt.def.name}|${gain}|${t2.lv}`); }
-            else { list.push({ ...mu, off: true }); benched++; }
+            else if (list.length >= MAX_ROSTER) { overflow++; } else { list.push({ ...mu, off: true }); benched++; }
         }
         const br = battleRef.current; if (phase === 'battle' && br && !br.result) { const on = list.filter((x) => !x.off); entered.forEach((u) => addAllyToBattle(br, u, on, cores, ups)); if (lineWins.length) lineSurge(br, lineWins.length, g[lineWins[0].cells[0]].u); setSurgePct(Math.round(((br.surge || 1) - 1) * 100)); if (lineWins.length) { const id = ++boonId.current; setBoonOffer({ lines: lineWins.length, id }); const nl = lineWins.length; setTimeout(() => { if (boonId.current === id) { const b2 = battleRef.current; if (b2 && !b2.result) { applyBoon(b2, 'atk', nl); setMsg('줄 강화 자동 적용: 공격 +10% x'+nl+'줄 (우리 설계·임시)'); } setBoonOffer((o) => (o && o.id === id ? null : o)); } }, 6000); } }
         if (made.length) parts.push(`${ev.wins.filter((w) => w.kind === 'line').length}줄 소환 ${made.length}기`); if (phase === 'battle' && lineWins.length) parts.push(`줄 기세 공격 +${lineWins.length * 6}%(당첨 심볼 계열 +${lineWins.length * 12}%)·체력 회복`); if (bonus) parts.push(`◆줄 코인 +${bonus}`); parts.push(...cx);
         setMsg(parts.join(' · ') + (slotUp.length ? ` · ${Object.entries(slotUp.reduce((m: Record<string, [number, number]>, s) => { const [n, gn, lv] = s.split('|'); const p = m[n] || [0, 0]; m[n] = [p[0] + Number(gn), Math.max(p[1], Number(lv))]; return m; }, {})).map(([n, v]) => `${n} 슬롯 강화 +${v[0]}${v[1] > 1 ? ` (★${v[1]})` : ''}`).join(', ')}` : '') + (benched ? ` · 출전 ${MAX_UNITS}기 가득: ${benched}기는 대기(유닛 선택 후 교체 가능)` : ''));
+        if (overflow) { setCoins((c) => c + overflow * 3); setMsg((m) => `${m} · 보유 한도 초과 ${overflow}기는 코인 +${overflow * 3}으로 전환 (우리 설계·임시)`); }
         setUnits(list);
         setPend(null); setFlash(true); setUndo(null); setTimeout(() => setFlash(false), 900);
     };
