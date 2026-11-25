@@ -296,3 +296,6 @@ body { background: #120c1a; }
 .sb-switch.on .sb-knob{background:#3fb760}
 .sb-switch.on .sb-knob::after{left:23px}
 .sb-autodesc{font-size:12px;margin:4px 4px 0;opacity:.85}
+/* 전투 설정 상자는 화면 최하단(보유 유닛 아래)에 배치 */
+.sb-opts { grid-column: 1 / -1; grid-row: auto; margin: 6px 8px 10px 10px; }
+@media (max-width: 700px) { .sb-opts { margin: 6px 8px 10px; } }
