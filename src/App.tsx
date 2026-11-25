@@ -274,8 +274,8 @@ export function App() {
             if (tgt) { const { t2, gain } = absorbCalc(tgt, mu); list = list.map((x) => (x.uid === tgt.uid ? t2 : x)); slotUp.push(`${tgt.def.name}|${gain}|${t2.lv}`); }
             else { list.push({ ...mu, off: true }); benched++; }
         }
-        const br = battleRef.current; if (phase === 'battle' && br && !br.result) { const on = list.filter((x) => !x.off); entered.forEach((u) => addAllyToBattle(br, u, on, cores, ups)); if (lineWins.length) lineSurge(br, lineWins.length); }
-        if (made.length) parts.push(`${ev.wins.filter((w) => w.kind === 'line').length}줄 소환 ${made.length}기`); if (phase === 'battle' && lineWins.length) parts.push(`줄 기세 공격 +${lineWins.length * 6}%·체력 회복`); if (bonus) parts.push(`◆줄 코인 +${bonus}`); parts.push(...cx);
+        const br = battleRef.current; if (phase === 'battle' && br && !br.result) { const on = list.filter((x) => !x.off); entered.forEach((u) => addAllyToBattle(br, u, on, cores, ups)); if (lineWins.length) lineSurge(br, lineWins.length, g[lineWins[0].cells[0]].u); }
+        if (made.length) parts.push(`${ev.wins.filter((w) => w.kind === 'line').length}줄 소환 ${made.length}기`); if (phase === 'battle' && lineWins.length) parts.push(`줄 기세 공격 +${lineWins.length * 6}%(당첨 심볼 계열 +${lineWins.length * 12}%)·체력 회복`); if (bonus) parts.push(`◆줄 코인 +${bonus}`); parts.push(...cx);
         setMsg(parts.join(' · ') + (slotUp.length ? ` · ${Object.entries(slotUp.reduce((m: Record<string, [number, number]>, s) => { const [n, gn, lv] = s.split('|'); const p = m[n] || [0, 0]; m[n] = [p[0] + Number(gn), Math.max(p[1], Number(lv))]; return m; }, {})).map(([n, v]) => `${n} 슬롯 강화 +${v[0]}${v[1] > 1 ? ` (★${v[1]})` : ''}`).join(', ')}` : '') + (benched ? ` · 출전 ${MAX_UNITS}기 가득: ${benched}기는 대기(유닛 선택 후 교체 가능)` : ''));
         setUnits(list);
         setPend(null); setFlash(true); setUndo(null); setTimeout(() => setFlash(false), 900);

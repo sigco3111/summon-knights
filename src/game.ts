@@ -237,10 +237,14 @@ export function startBattle(board: Unit[], stage: StageDef, camp = false, cores:
 }
 /** 전투 중 소환: 새 유닛을 즉시 전장에 투입(슬롯은 웨이브 중에도 돌릴 수 있다). */
 // 줄 기세(우리 설계, 임시): 전투 중 줄 당첨 1줄마다 출전 아군 공격 +6%(전투 종료까지, 합류 유닛 포함), 체력 12% 회복
-export function lineSurge(b: Battle, lines: number) {
+export function lineSurge(b: Battle, lines: number, sym?: number) {
     if (b.result || lines < 1) return;
     const m = Math.pow(1.06, lines); b.surge = (b.surge || 1) * m;
-    for (const f of b.fighters) if (f.team === 'a' && !f.dead) { f.atk = Math.round(f.atk * m); f.hp = Math.min(f.maxHp, f.hp + f.maxHp * 0.12 * lines); b.events?.push({ k: 'heal', x: f.x, y: f.y - 4, flip: false }); }
+    const kin = sym !== undefined && SYMBOLS[sym] ? SYMBOLS[sym].group.map((i) => ALLIES[i].name) : [];
+    for (const f of b.fighters) if (f.team === 'a' && !f.dead) {
+        const mm = kin.includes(f.name) ? Math.pow(1.12, lines) : m; // 같은 심볼 계열 유닛은 2배 보너스(우리 설계, 임시)
+        f.atk = Math.round(f.atk * mm); f.hp = Math.min(f.maxHp, f.hp + f.maxHp * 0.12 * lines); b.events?.push({ k: 'heal', x: f.x, y: f.y - 4, flip: false });
+    }
 }
 export function addAllyToBattle(b: Battle, u: Unit, list: Unit[], cores: string[], ups: string[]) {
     if (b.result) return;

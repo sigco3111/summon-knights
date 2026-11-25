@@ -8,7 +8,7 @@ function spinOnce(S) {
   if (S.coins < cost || S.units.length >= 30) return false;
   S.coins -= cost; S.spins++;
   const gr = Array.from({ length: 9 }, () => g.rollCell());
-  const ev = g.evalGrid(gr);
+  const ev = g.evalGrid(gr); S.lastLines = ev.wins.filter((w) => w.kind === 'line').length;
   if (!ev.units && !ev.shards) { S.coins += 1; return true; }
   S.coins += Math.round(ev.shards * 0.6);
   const made = [];
@@ -27,7 +27,7 @@ function runStage(S, stage) {
   const b = g.startBattle(board, stage, false, [], S.ups); let guard = 0, since = 0, lootA = 0;
   while (!b.result && guard++ < 60000) {
     g.step(b, 50); since += 50; if (b.loot > lootA) { S.coins += b.loot - lootA; lootA = b.loot; }
-    if (since >= (+process.env.SPIN_MS || 1500)) { since = 0; const e = spinOnce(S); if (Array.isArray(e)) { const on = S.units.filter((x) => !x.off); e.forEach((u) => g.addAllyToBattle(b, u, on, [], S.ups)); } }
+    if (since >= (+process.env.SPIN_MS || 1500)) { since = 0; const e = spinOnce(S); if (Array.isArray(e)) { if (process.env.SURGE && S.lastLines) g.lineSurge(b, S.lastLines); const on = S.units.filter((x) => !x.off); e.forEach((u) => g.addAllyToBattle(b, u, on, [], S.ups)); } }
   }
   return b.result === 'win';
 }
