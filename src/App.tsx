@@ -444,7 +444,7 @@ export function App() {
         <div className="sb-bar">
             {phase === 'prep' && <><button type="button" className="sb-btn go" disabled={!ready || !reg.ready || spinning || (!!pend && !!(evalGrid(pend.grid).units || evalGrid(pend.grid).shards))} onClick={() => { if (pend) { setPend(null); setHeld([false, false, false]); } startFight(); }}>{pend && (evalGrid(pend.grid).units || evalGrid(pend.grid).shards) ? '소환 확정 먼저' : '전투 시작'}</button></>}
             {phase === 'battle' && <><button type="button" className="sb-btn go" disabled>전투 중</button><button type="button" className={`sb-btn ghost${speed > 1 ? ' on' : ''}`} onClick={() => setSpeed((v) => (v === 1 ? 2 : 1))} aria-pressed={speed > 1}>배속 ×{speed}</button></>}
-            {phase === 'win' && <><button type="button" className="sb-btn go" onClick={next}>다음 전투</button><button type="button" className="sb-btn ghost" onClick={() => toPrep()}>정비</button></>}
+            {phase === 'win' && <><button type="button" className="sb-btn go" onClick={next}>다음 전투</button><button type="button" className="sb-btn ghost" onClick={() => { toPrep(); setMsg('정비 모드: 이 전투를 다시 준비합니다(다음 전투로 넘어가지 않음). 소환·배치·강화 후 전투 시작을 누르세요'); document.querySelector('.sb-btn.go')?.scrollIntoView({ block: 'center', behavior: 'smooth' }); }}>정비(이 전투 다시 준비)</button></>}
             {phase === 'lose' && <button type="button" className="sb-btn go" onClick={() => toPrep()}>다시 준비</button>}
         </div>
         {selUnit && <div className="sb-info">
