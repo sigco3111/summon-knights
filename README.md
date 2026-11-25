@@ -37,10 +37,13 @@ npm install react react-dom esbuild
 npx esbuild src/main.tsx --bundle --minify --format=iife --jsx=automatic \
   --alias:@instinct/files=./build/stub.ts \
   --loader:.png=dataurl --loader:.jpg=dataurl --loader:.woff2=dataurl --loader:.webp=dataurl \
-  --define:process.env.NODE_ENV='"production"' --outfile=docs/bundle.js
+  --define:process.env.NODE_ENV='"production"' --outfile=dist/bundle.js
+cp docs/index.html dist/index.html
+sed -i 's#bundle[.0-9a-f]*\.css#bundle.css#; s#bundle[.0-9a-f]*\.js#bundle.js#' dist/index.html
+npx http-server dist   # 또는 아무 정적 서버로 dist/ 폴더를 열기
 ```
 
-`@instinct/files`(Files 미러용 저장소)는 `build/stub.ts`(브라우저 localStorage)로 대체해 빌드합니다. 빌드한 `docs/` 폴더를 정적 서버로 열면 됩니다.
+`@instinct/files`(Files 미러용 저장소)는 `build/stub.ts`(브라우저 localStorage)로 대체해 빌드합니다. `docs/`는 GitHub Pages가 서비스하는 배포본입니다.
 
 ## 기술 노트
 
@@ -49,7 +52,8 @@ npx esbuild src/main.tsx --bundle --minify --format=iife --jsx=automatic \
 - 저장은 단일 키(`slotbound.save.v1`)에 JSON으로 저장하며, 통계는 같은 저장에 `stats` 필드로 들어갑니다.
 - 통계는 이 기능이 들어간 빌드부터 집계합니다. 그 이전의 전투 수, 소환 수, 획득 코인, 처치 수는 기록되지 않았습니다.
 - 흡수, 승급, 각인, 회차 배율 등 "우리 설계·임시"로 표시된 규칙은 직접 설계한 값이며 정식 밸런스 검증 전입니다.
-- 실제 모바일 기기 터치와 Files 미러의 자동 저장은 개발 환경에서 직접 시험하지 못했습니다(모바일 폭 430px 화면만 확인).
+- Files 미러(files.instinct.com)는 저장소를 지원하지 않는 환경이라 자동 저장이 되지 않습니다(알려진 제약). 그곳에서는 저장 코드를 사용하세요.
+- 실제 모바일 기기 터치는 개발 환경에서 직접 시험하지 못했습니다(모바일 폭 430px 화면만 확인).
 
 ## 라이선스와 출처
 
