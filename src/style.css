@@ -284,3 +284,6 @@ body { background: #120c1a; }
 .sb-coredet summary { cursor: pointer; }
 .sb-coredet .sb-more { color: #9c92ae; }
 .sb-coredet div { padding-left: 8px; }
+.sb-matgrid { grid-auto-rows: max-content; align-items: stretch; }
+.sb-info .sb-matgrid .sb-btn.sm { height: auto; min-height: 44px; padding: 6px 8px; white-space: normal; overflow: visible; line-height: 1.25; align-items: flex-start; }
+.sb-info .sb-matgrid .sb-btn.sm small { white-space: normal; overflow-wrap: anywhere; }
