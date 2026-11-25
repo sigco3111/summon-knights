@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocalState } from '@instinct/files';
 import { FxLayer } from './fxlayer';
-import { Dashboard, Stats, emptyStats, normStats } from './dash';
+import { Dashboard, Stats, emptyStats, normStats, addCy } from './dash';
 import { drawSymbol } from './icons';
 import grotto from './photos/grotto.jpg';
 import bgforest from './photos/forest.jpg';
@@ -82,6 +82,7 @@ export function App() {
     const lootApplied = useRef(0);
     const [upQ, setUpQ] = useState(0); const [coreQ, setCoreQ] = useState(0); // 자동 진행 중 쌓인 보상 선택 대기 횟수(보상은 사라지지 않음)
     const [cycle, setCycle] = useState(1); // 회차(우리 설계·임시): 8-7 클리어 후 다음 회차를 시작하면 적 강도와 코인 보상이 오름
+    const cycRef = useRef(1); cycRef.current = cycle;
     const [upOffer, setUpOffer] = useState<string[] | null>(null); const [offer, setOffer] = useState<string[] | null>(null);
     const [ups, setUps] = useState<string[]>([]); const upsRef = useRef<string[]>([]); upsRef.current = ups; 
     const [sel, setSel] = useState<number | null>(null);
@@ -163,7 +164,7 @@ export function App() {
     }, []);
 
     const [save, setSave, saved] = useLocalState<{ coins: number; shards: number; units: number[][]; region: number; stage: number; cleared: Record<string, boolean>; cyc?: number; uo?: string[] | null; co?: string[] | null; uq?: number; cq?: number; cores?: string[]; ups?: string[]; pend?: { g: number[][]; rr: boolean } | null } | null>('slotbound.save.v1', null);
-    const [stats, setStats] = useState<Stats>(emptyStats); const [statsOpen, setStatsOpen] = useState(false);
+    const [stats, setStats] = useState<Stats>(emptyStats); const setStatsC = (f: (x: Stats) => Stats) => setStats((x) => addCy(x, f(x), cycRef.current)); const [statsOpen, setStatsOpen] = useState(false);
     const restored = useRef(false); const [loaded, setLoaded] = useState(false); // 복원 상태가 반영된 렌더부터만 자동 저장(복원 직전 빈 상태가 저장을 덮는 틈 방지)
     useEffect(() => {
         if (!saved.ready || restored.current) return; restored.current = true;
@@ -201,8 +202,8 @@ export function App() {
     const [diff, setDiffS] = useState<number>(() => { try { return Math.min(2, Math.max(0, parseInt(localStorage.getItem('sk-diff') || '0', 10) || 0)); } catch { return 0; } });
     const setDiff = (d: number) => { setDiffS(d); try { localStorage.setItem('sk-diff', String(d)); } catch { /* */ } };
     const DIFFS = [{ n: '이지', m: 1.3, r: 1, a: 2.5 }, { n: '노멀', m: 1.5, r: 1.4, a: 4 }, { n: '하드', m: 1.8, r: 2, a: 6 }]; // 우리 설계, 임시(미측정)
-    const cycMult = 1 + 0.45 * (cycle - 1); const cycRew = 1 + 0.25 * (cycle - 1); // 회차 보정(우리 설계·임시, 미측정)
-    const stage = (() => { const s0 = buildStage(reg, stageIdx); const d = DIFFS[diff]; return { ...s0, atkBoost: (d as { a?: number }).a || 1, mult: s0.mult * d.m * cycMult, reward: Math.round(s0.reward * d.r * cycRew) }; })();
+    const cycAdd = 9 * (cycle - 1); const cycMult = cycAdd; const cycRew = 1 + 0.25 * (cycle - 1); // 회차 보정(우리 설계·임시, 미측정)
+    const stage = (() => { const s0 = buildStage(reg, stageIdx); const d = DIFFS[diff]; return { ...s0, atkBoost: (d as { a?: number }).a || 1, mult: (cycle > 1 ? 1 + (s0.mult - 1) * 0.3 + cycAdd : s0.mult) * d.m, reward: Math.round(s0.reward * d.r * cycRew) }; })();
 
     useEffect(() => {
         if (!ready) return;
@@ -214,7 +215,7 @@ export function App() {
                 for (let k = 0; k < speedRef.current; k++) step(b, dt);
                 if (b.events) { for (const e of b.events.splice(0)) fxRef.current?.add(e); } fxRef.current?.update(dt * speedRef.current);
                 acc += dt; if (acc > 150) { acc = 0; setKills([b.kills, b.total]); }
-                if (b.loot && b.loot > lootApplied.current) { const d = b.loot - lootApplied.current; lootApplied.current = b.loot; setCoins((c) => c + d); setStats((x) => ({ ...x, ce: x.ce + d })); }
+                if (b.loot && b.loot > lootApplied.current) { const d = b.loot - lootApplied.current; lootApplied.current = b.loot; setCoins((c) => c + d); setStatsC((x) => ({ ...x, ce: x.ce + d })); }
                 if (b.result && phaseRef.current === 'battle') {
                     setKills([b.kills, b.total]);
                     if (!b.rewarded) {
@@ -222,12 +223,12 @@ export function App() {
                         const st = b.stage;
                         if (b.result === 'win') {
                             setCleared((c) => ({ ...c, [st.label]: true }));
-                            const rw = Math.round(st.reward * (coresRef.current.includes('purse') ? 1.25 : 1)) + 2 * upsRef.current.filter((x) => x === 'loot').length; setCoins((c) => c + rw); setStats((x) => ({ ...x, bw: x.bw + 1, cs: x.cs + 1, bs: Math.max(x.bs, x.cs + 1), kl: x.kl + b.kills, ce: x.ce + rw, sc: { ...x.sc, [st.label]: (x.sc[st.label] || 0) + 1 } }));
+                            const rw = Math.round(st.reward * (coresRef.current.includes('purse') ? 1.25 : 1)) + 2 * upsRef.current.filter((x) => x === 'loot').length; setCoins((c) => c + rw); setStatsC((x) => ({ ...x, bw: x.bw + 1, cs: x.cs + 1, bs: Math.max(x.bs, x.cs + 1), kl: x.kl + b.kills, ce: x.ce + rw, sc: { ...x.sc, [st.label]: (x.sc[st.label] || 0) + 1 } }));
                             { const ru = rollUps(upsRef.current).map((x) => x.id); if (ru.length) { if (autoRunRef.current && upOfferRef.current) setUpQ((n) => n + 1); else setUpOffer(ru); } }
                             if (coresRef.current.length < MAX_CORES) { if (autoRunRef.current && offerRef.current) setCoreQ((n) => n + 1); else setOffer(rollCores(coresRef.current).map((x) => x.id)); }
                             setMsg(`승리 · 코인 +${rw}`);
                         } else {
-                            setCoins((c) => c + 1); setStats((x) => ({ ...x, bl: x.bl + 1, cs: 0, kl: x.kl + b.kills, ce: x.ce + 1 }));
+                            setCoins((c) => c + 1); setStatsC((x) => ({ ...x, bl: x.bl + 1, cs: 0, kl: x.kl + b.kills, ce: x.ce + 1 }));
                             setMsg('패배 · 코인 +1 · 더 소환하고 재도전');
                         }
                     }
@@ -241,7 +242,7 @@ export function App() {
         return () => cancelAnimationFrame(raf);
     }, [ready]);
 
-    useEffect(() => { const id = window.setInterval(() => { if (document.visibilityState === 'visible') setStats((x) => ({ ...x, ps: x.ps + 10 })); }, 10000); return () => window.clearInterval(id); }, []);
+    useEffect(() => { const id = window.setInterval(() => { if (document.visibilityState === 'visible') setStatsC((x) => ({ ...x, ps: x.ps + 10 })); }, 10000); return () => window.clearInterval(id); }, []);
     const heldCount = held.filter(Boolean).length;
     const [spins, setSpins] = useState(0); const [nudges, setNudges] = useState(NUDGE_PER_WAVE);
     useEffect(() => { setSpins(0); setNudges(NUDGE_PER_WAVE); }, [region, stageIdx]);
@@ -256,7 +257,7 @@ export function App() {
         if (units.length >= MAX_ROSTER && !spinning) { setMsg(`보유 ${units.length}/${MAX_ROSTER} 가득: 더 이상 소환할 수 없습니다. 흡수로 정리하세요`); return; }
         if (spinning || coins < spinCost) return;
         if (pend) setPend(null);
-        setCoins((c) => c - spinCost); setSpins((n) => n + 1); setStats((x) => ({ ...x, sp: x.sp + 1 })); setSpinning(true); setSel(null); setFlash(false);
+        setCoins((c) => c - spinCost); setSpins((n) => n + 1); setStatsC((x) => ({ ...x, sp: x.sp + 1 })); setSpinning(true); setSel(null); setFlash(false);
         const base = grid; const keep = held.slice();
         const fin: GridCell[] = Array.from({ length: 9 }, (_, i) => (base && keep[i % 3] ? base[i] : rollCell()));
         setHeld([false, false, false]); setUndo(null);
@@ -543,7 +544,7 @@ export function App() {
         </div>
         <div className="sb-opts"><span className="sb-tag">자동 이동 전투</span>
         <div className="sb-optrow">난이도 {DIFFS.map((d, i) => <button key={d.n} disabled={phase === 'battle'} onClick={() => setDiff(i)} style={{ margin: '0 3px', padding: '1px 7px', fontWeight: i === diff ? 700 : 400, opacity: i === diff ? 1 : 0.6 }}>{d.n}</button>)} 적 강도 ×{DIFFS[diff].m}{(DIFFS[diff] as { a?: number }).a ? ` · 적 공격 추가 ×${(DIFFS[diff] as { a?: number }).a}` : ''} · 승리 코인 ×{DIFFS[diff].r} (우리 설계·임시, 미측정)</div>
-        <div className="sb-optrow"><b>{cycle}회차</b> 적 강도 ×{cycMult.toFixed(2)} · 승리 코인 ×{cycRew.toFixed(2)} (우리 설계·임시){cleared['8-7'] && !ending ? <button type="button" disabled={phase === 'battle'} onClick={startNextCycle} style={{ margin: '0 3px', padding: '1px 8px' }}>{confirmCycle ? '한 번 더 누르면 시작' : '다음 회차'}</button> : ' · 8-7 클리어 후 다음 회차 해금'}</div>
+        <div className="sb-optrow"><b>{cycle}회차</b> 적 강도 기본치 +{cycAdd}(회차당 +9, 단계 상승폭은 30%, 난이도 배율 적용) · 승리 코인 ×{cycRew.toFixed(2)} (우리 설계·임시){cleared['8-7'] && !ending ? <button type="button" disabled={phase === 'battle'} onClick={startNextCycle} style={{ margin: '0 3px', padding: '1px 8px' }}>{confirmCycle ? '한 번 더 누르면 시작' : '다음 회차'}</button> : ' · 8-7 클리어 후 다음 회차 해금'}</div>
         <div className="sb-autorow"><button type="button" role="switch" aria-checked={autoRun} className={'sb-switch' + (autoRun ? ' on' : '')} onClick={() => setAutoRun(!autoRun)}><span className="sb-knob" /><span className="sb-swlabel">자동 진행 {autoRun ? '켬' : '끔'}</span></button><div className="sb-autodesc">{autoRun ? ((upOffer || offer) ? `선택 보상은 쌓아 두고 진행합니다${upQ + coreQ > 0 ? ` (대기 ${upQ + coreQ}회)` : ''}. 아래에서 골라 주세요` : phase === 'lose' ? '패배해서 멈춤: 정비 후 직접 시작하세요' : (autoPick ? '승리하면 다음 전투를 자동 시작합니다(보상은 아래 자동 선택으로 처리)' : '승리하면 다음 전투를 자동 시작합니다(보상은 자동 선택하지 않고 쌓아 둠)')) : '끔: 직접 다음 전투/전투 시작을 누릅니다'}</div></div><div className="sb-autorow"><button type="button" role="switch" aria-checked={autoPick} className={'sb-switch' + (autoPick ? ' on' : '')} onClick={() => setAutoPick(!autoPick)}><span className="sb-knob" /><span className="sb-swlabel">보상 자동 선택 {autoPick ? '켬' : '끔'}</span></button><div className="sb-autodesc">{autoPick ? '강화/코어 보상을 자동으로 고릅니다(강화: 보유 수가 가장 적은 것, 코어: 제시 첫 번째 · 임시 기준)' : '끔: 보상은 직접 고릅니다. 자동 진행과 함께 켜면 패배/엔딩/소환 대기 전까지 계속 진행합니다'}</div></div>
         {GIMMICKS[reg.id] && <div className="sb-optrow">지역 기믹 [{GIMMICKS[reg.id]!.name}] {GIMMICKS[reg.id]!.desc} (우리 설계·임시)</div>}
         {ups.length > 0 && <div className="sb-optrow"><b>보유 강화</b> {UPS.filter((d) => ups.includes(d.id)).map((d) => `${d.name} x${ups.filter((x) => x === d.id).length}`).join(' · ')}</div>}

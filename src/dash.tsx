@@ -1,12 +1,20 @@
 import React from 'react';
 
-export interface Stats { bw: number; bl: number; sp: number; ce: number; kl: number; ps: number; bs: number; cs: number; sc: Record<string, number>; since: number; }
-export const emptyStats = (): Stats => ({ bw: 0, bl: 0, sp: 0, ce: 0, kl: 0, ps: 0, bs: 0, cs: 0, sc: {}, since: Date.now() });
+export interface Stats { bw: number; bl: number; sp: number; ce: number; kl: number; ps: number; bs: number; cs: number; sc: Record<string, number>; since: number; cy: Record<string, CyRec>; }
+export interface CyRec { bw: number; bl: number; ce: number; ps: number; sp: number; kl: number; }
+const CYK: (keyof CyRec)[] = ['bw', 'bl', 'ce', 'ps', 'sp', 'kl'];
+export function addCy(old: Stats, nw: Stats, cycle: number): Stats {
+    const k = String(cycle); const cur: CyRec = { ...(nw.cy?.[k] || { bw: 0, bl: 0, ce: 0, ps: 0, sp: 0, kl: 0 }) }; let ch = false;
+    for (const f of CYK) { const dlt = (nw[f] as number) - (old[f] as number); if (dlt > 0) { cur[f] += dlt; ch = true; } }
+    return ch ? { ...nw, cy: { ...(nw.cy || {}), [k]: cur } } : nw;
+}
+export const emptyStats = (): Stats => ({ bw: 0, bl: 0, sp: 0, ce: 0, kl: 0, ps: 0, bs: 0, cs: 0, sc: {}, since: Date.now(), cy: {} });
 export function normStats(q: unknown): Stats {
     const e = emptyStats(); if (!q || typeof q !== 'object') return e;
     const o = q as Record<string, unknown>; const n = (k: string) => Math.max(0, Math.floor(Number(o[k]) || 0));
     const sc: Record<string, number> = {}; if (o.sc && typeof o.sc === 'object') for (const [k, v] of Object.entries(o.sc as Record<string, unknown>)) { const c = Math.max(0, Math.floor(Number(v) || 0)); if (c) sc[k] = c; }
-    return { bw: n('bw'), bl: n('bl'), sp: n('sp'), ce: n('ce'), kl: n('kl'), ps: n('ps'), bs: n('bs'), cs: n('cs'), sc, since: n('since') || Date.now() };
+    const cy: Record<string, CyRec> = {}; if (o.cy && typeof o.cy === 'object') for (const [k, v] of Object.entries(o.cy as Record<string, unknown>)) { if (!v || typeof v !== 'object') continue; const r = v as Record<string, unknown>; const g = (f: string) => Math.max(0, Math.floor(Number(r[f]) || 0)); cy[k] = { bw: g('bw'), bl: g('bl'), ce: g('ce'), ps: g('ps'), sp: g('sp'), kl: g('kl') }; }
+    return { bw: n('bw'), bl: n('bl'), sp: n('sp'), ce: n('ce'), kl: n('kl'), ps: n('ps'), bs: n('bs'), cs: n('cs'), sc, since: n('since') || Date.now(), cy };
 }
 const fmtTime = (s: number) => { const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60); return h ? `${h}시간 ${m}분` : `${m}분`; };
 const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0);
@@ -44,6 +52,10 @@ export function Dashboard(p: Props) {
                 <svg width="88" height="88" viewBox="0 0 88 88" aria-label={`승률 ${wr}%`}><circle cx="44" cy="44" r={R} fill="none" stroke="#b9876a" strokeWidth="12" /><circle cx="44" cy="44" r={R} fill="none" stroke="#4cae6a" strokeWidth="12" strokeDasharray={`${winLen} ${C}`} transform="rotate(-90 44 44)" /><text x="44" y="49" textAnchor="middle" fontSize="16" fill="#2b1d0a" fontWeight="700">{battles ? `${wr}%` : '-'}</text></svg>
                 <div><div><i className="dash-dot" style={{ background: '#4cae6a' }} />승리 {stats.bw}</div><div><i className="dash-dot" style={{ background: '#b9876a' }} />패배 {stats.bl}</div><small>패배는 비용이 없습니다 (코인 +1)</small></div>
             </div>
+        </div>
+        <div className="dash-sec"><b>회차별 기록 (현재 {p.cycle}회차)</b>
+            {Array.from({ length: p.cycle }, (_, i) => i + 1).map((c) => { const r = stats.cy[String(c)]; const n = r ? r.bw + r.bl : 0; return <div className="dash-bar" key={c} style={{ display: 'block' }}>{r ? <span><b>{c}회차</b> 전투 {n}회 (승 {r.bw} / 패 {r.bl}, 승률 {pct(r.bw, n)}%) · 코인 {r.ce} · 소환 {r.sp} · 처치 {r.kl} · {fmtTime(r.ps)}</span> : <span><b>{c}회차</b> 기록 없음 (회차별 집계 시작 전)</span>}</div>; })}
+            <small>회차별 집계는 이번 업데이트 이후 전투부터 쌓입니다. 이전 회차 수치는 만들어 넣지 않습니다.</small>
         </div>
         <div className="dash-sec"><b>지역 진행 ({totalDone}/{totalAll}{p.cycle > 1 ? ` · ${p.cycle}회차` : ''})</b>
             {regions.filter((r) => r.ready !== false).map((r) => { const d = Array.from({ length: perRegion }, (_, k) => cleared[`${r.id}-${k + 1}`]).filter(Boolean).length; return <div className="dash-bar" key={r.id}><span>{r.id} {r.name}</span><div><i style={{ width: `${pct(d, perRegion)}%` }} /></div><em>{d}/{perRegion}</em></div>; })}
