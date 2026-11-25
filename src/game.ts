@@ -113,18 +113,20 @@ export const GIMMICKS: Record<number, Gimmick | null> = {
 };
 export const STAGES_PER_REGION = 7; // 일반 5 + 정예 1 + 보스 1
 
-export interface StageDef { region: number; index: number; kind: '일반' | '정예' | '보스'; label: string; spawns: { id: string; at: number }[]; mult: number; reward: number; }
+export interface StageDef { region: number; index: number; kind: '일반' | '정예' | '보스'; label: string; spawns: { id: string; at: number }[]; mult: number; reward: number; atkBoost?: number; }
 
+export const TUNE = { count: 1.4, open: 10, gap: 0.9, lateFrom: 6, lateCount: 1.0, lateOpen: 5 }; // 적 수 조정(우리 설계·임시): 전체 수 배율, 초반 몰려오는 수, 이후 간격 배율
 export function buildStage(region: RegionDef, index: number): StageDef {
     const kind: StageDef['kind'] = index === STAGES_PER_REGION - 1 ? '보스' : index === STAGES_PER_REGION - 2 ? '정예' : '일반';
     const global = (region.id - 1) * STAGES_PER_REGION + index;
     const mult = 1 + global * 0.13 + (kind === '보스' ? 0.4 : 0);
     const spawns: { id: string; at: number }[] = [];
-    const n = 6 + Math.floor(index * 1.5) + (region.id - 1) * 2;
+    const n = Math.round((6 + Math.floor(index * 1.5) + (region.id - 1) * 2) * (region.id >= TUNE.lateFrom ? TUNE.lateCount : TUNE.count));
+    const gap = 1500 - Math.min(700, index * 80 + (region.id - 1) * 120);
     let t = 1200;
     for (let i = 0; i < n; i++) {
         spawns.push({ id: region.pool[(i + index) % region.pool.length], at: t });
-        t += 1500 - Math.min(700, index * 80 + (region.id - 1) * 120);
+        t += i < (region.id >= TUNE.lateFrom ? TUNE.lateOpen : TUNE.open) ? 320 : gap * TUNE.gap; // 초반에 한꺼번에 몰려오는 무리(아군 8기보다 많은 적과 동시에 싸우게 함, 우리 조정)
     }
     if (kind === '정예') { spawns.push({ id: region.elite, at: t + 800 }); spawns.push({ id: region.elite, at: t + 1600 }); }
     if (kind === '보스') spawns.push({ id: region.boss, at: t + 1500 });
@@ -269,7 +271,7 @@ function spawnEnemy(b: Battle, id: string) {
     const y = d.flying ? CELL_Y[lane] - 26 : CELL_Y[lane];
     const m = b.stage.mult; const gm = GIMMICKS[b.stage.region]; const eh = gm?.eHp || 1, ea = gm?.eAtk || 1;
     b.fighters.push({
-        team: 'e', key: `e${b.fighters.length}_${Math.random()}`, sheet: d.sheet, x: W + 30, y, baseX: W + 30, hp: Math.round(d.hp * m * eh), maxHp: Math.round(d.hp * m * eh), atk: d.atk * (1 + (m - 1) * 0.6) * ea, cd: d.cd,
+        team: 'e', key: `e${b.fighters.length}_${Math.random()}`, sheet: d.sheet, x: W + 30, y, baseX: W + 30, hp: Math.round(d.hp * m * eh), maxHp: Math.round(d.hp * m * eh), atk: d.atk * (1 + (m - 1) * 0.6) * ea * (b.stage.atkBoost || 1), cd: d.cd,
         range: d.range, speed: d.speed, px: d.px, face: -1, state: 'move', t: 0, fired: false, cdLeft: 400, target: null, flying: d.flying, boss: d.boss, hue: d.hue, dead: false, fade: 1, hitT: 0, name: d.name,
     });
 }

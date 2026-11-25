@@ -195,9 +195,9 @@ export function App() {
     const board = units.filter((u) => !u.off); const benchN = units.length - board.length;
     const [diff, setDiffS] = useState<number>(() => { try { return Math.min(2, Math.max(0, parseInt(localStorage.getItem('sk-diff') || '1', 10) || 0)); } catch { return 1; } });
     const setDiff = (d: number) => { setDiffS(d); try { localStorage.setItem('sk-diff', String(d)); } catch { /* */ } };
-    const DIFFS = [{ n: '이지', m: 0.8, r: 0.8 }, { n: '노멀', m: 1, r: 1 }, { n: '하드', m: 1.3, r: 1.5 }]; // 우리 설계, 임시(미측정)
+    const DIFFS = [{ n: '이지', m: 0.8, r: 0.8 }, { n: '노멀', m: 1, r: 1 }, { n: '하드', m: 1.3, r: 1.5, a: 1.15 }]; // 우리 설계, 임시(미측정)
     const cycMult = 1 + 0.45 * (cycle - 1); const cycRew = 1 + 0.25 * (cycle - 1); // 회차 보정(우리 설계·임시, 미측정)
-    const stage = (() => { const s0 = buildStage(reg, stageIdx); const d = DIFFS[diff]; return { ...s0, mult: s0.mult * d.m * cycMult, reward: Math.round(s0.reward * d.r * cycRew) }; })();
+    const stage = (() => { const s0 = buildStage(reg, stageIdx); const d = DIFFS[diff]; return { ...s0, atkBoost: (d as { a?: number }).a || 1, mult: s0.mult * d.m * cycMult, reward: Math.round(s0.reward * d.r * cycRew) }; })();
 
     useEffect(() => {
         if (!ready) return;
@@ -536,7 +536,7 @@ export function App() {
             </button>)}
         </div>
         <div className="sb-opts"><span className="sb-tag">자동 이동 전투</span>
-        <div className="sb-optrow">난이도 {DIFFS.map((d, i) => <button key={d.n} disabled={phase === 'battle'} onClick={() => setDiff(i)} style={{ margin: '0 3px', padding: '1px 7px', fontWeight: i === diff ? 700 : 400, opacity: i === diff ? 1 : 0.6 }}>{d.n}</button>)} 적 강도 ×{DIFFS[diff].m} · 승리 코인 ×{DIFFS[diff].r} (우리 설계·임시, 미측정)</div>
+        <div className="sb-optrow">난이도 {DIFFS.map((d, i) => <button key={d.n} disabled={phase === 'battle'} onClick={() => setDiff(i)} style={{ margin: '0 3px', padding: '1px 7px', fontWeight: i === diff ? 700 : 400, opacity: i === diff ? 1 : 0.6 }}>{d.n}</button>)} 적 강도 ×{DIFFS[diff].m}{(DIFFS[diff] as { a?: number }).a ? ` · 적 공격 추가 ×${(DIFFS[diff] as { a?: number }).a}` : ''} · 승리 코인 ×{DIFFS[diff].r} (우리 설계·임시, 미측정)</div>
         <div className="sb-optrow"><b>{cycle}회차</b> 적 강도 ×{cycMult.toFixed(2)} · 승리 코인 ×{cycRew.toFixed(2)} (우리 설계·임시){cleared['8-7'] && !ending ? <button type="button" disabled={phase === 'battle'} onClick={startNextCycle} style={{ margin: '0 3px', padding: '1px 8px' }}>{confirmCycle ? '한 번 더 누르면 시작' : '다음 회차'}</button> : ' · 8-7 클리어 후 다음 회차 해금'}</div>
         <div className="sb-autorow"><button type="button" role="switch" aria-checked={autoRun} className={'sb-switch' + (autoRun ? ' on' : '')} onClick={() => setAutoRun(!autoRun)}><span className="sb-knob" /><span className="sb-swlabel">자동 진행 {autoRun ? '켬' : '끔'}</span></button><div className="sb-autodesc">{autoRun ? ((upOffer || offer) ? `선택 보상은 쌓아 두고 진행합니다${upQ + coreQ > 0 ? ` (대기 ${upQ + coreQ}회)` : ''}. 아래에서 골라 주세요` : phase === 'lose' ? '패배해서 멈춤: 정비 후 직접 시작하세요' : (autoPick ? '승리하면 다음 전투를 자동 시작합니다(보상은 아래 자동 선택으로 처리)' : '승리하면 다음 전투를 자동 시작합니다(보상은 자동 선택하지 않고 쌓아 둠)')) : '끔: 직접 다음 전투/전투 시작을 누릅니다'}</div></div><div className="sb-autorow"><button type="button" role="switch" aria-checked={autoPick} className={'sb-switch' + (autoPick ? ' on' : '')} onClick={() => setAutoPick(!autoPick)}><span className="sb-knob" /><span className="sb-swlabel">보상 자동 선택 {autoPick ? '켬' : '끔'}</span></button><div className="sb-autodesc">{autoPick ? '강화/코어 보상을 자동으로 고릅니다(강화: 보유 수가 가장 적은 것, 코어: 제시 첫 번째 · 임시 기준)' : '끔: 보상은 직접 고릅니다. 자동 진행과 함께 켜면 패배/엔딩/소환 대기 전까지 계속 진행합니다'}</div></div>
         {GIMMICKS[reg.id] && <div className="sb-optrow">지역 기믹 [{GIMMICKS[reg.id]!.name}] {GIMMICKS[reg.id]!.desc} (우리 설계·임시)</div>}
