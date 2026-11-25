@@ -399,6 +399,7 @@ export function App() {
     };
     const toPrep = (nextStage?: number) => { battleRef.current = null; setPhase('prep'); if (nextStage !== undefined) setStageIdx(nextStage); setKills([0, 0]); setMsg('소환으로 유닛을 모으고 전투 시작'); };
     const [ending, setEnding] = useState(false);
+    const cycleLock = useRef(false);
     const [confirmCycle, setConfirmCycle] = useState(false); const [rewOpen, setRewOpen] = useState(false);
     const [autoRun, setAutoRunS] = useState<boolean>(() => { try { return localStorage.getItem('sk-auto') === '1'; } catch { return false; } });
     const autoGo = useRef(false);
@@ -412,9 +413,11 @@ export function App() {
     };
     // 지역 해금(우리 설계, 임시): 이전 지역 보스를 클리어해야 다음 지역 입장. 이미 그 지역(또는 이후)에 있는 기존 저장은 막지 않음
     const regOpen = (ri: number) => ri === 0 || ri <= region || !!cleared[`${REGIONS[ri - 1].id}-${STAGES_PER_REGION}`];
+    useEffect(() => { if (!confirmCycle) return; const id = window.setTimeout(() => setConfirmCycle(false), 5000); return () => window.clearTimeout(id); }, [confirmCycle]); // 확인 대기는 5초 뒤 자동 취소
     const startNextCycle = () => {
-        if (phase === 'battle') return;
+        if (phase === 'battle' || cycleLock.current) return;
         if (!confirmCycle) { setConfirmCycle(true); return; }
+        cycleLock.current = true; window.setTimeout(() => { cycleLock.current = false; }, 1500); // 중복 클릭으로 보너스가 두 번 지급되지 않게 막음
         setConfirmCycle(false); const nc = cycle + 1; const bonus = 20 * cycle;
         setCycle(nc); setRegion(0); setStageIdx(0); setCleared({}); setEnding(false); setSpins(0); setNudges(NUDGE_PER_WAVE); setCoins((c) => c + bonus);
         battleRef.current = null; setPhase('prep'); setKills([0, 0]); setMsg(`${nc}회차 시작 · 회차 보너스 코인 +${bonus} · 적 강도 ×${(1 + 0.45 * (nc - 1)).toFixed(2)}, 승리 코인 ×${(1 + 0.25 * (nc - 1)).toFixed(2)} (우리 설계·임시)`);
