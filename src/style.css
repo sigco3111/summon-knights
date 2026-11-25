@@ -281,3 +281,6 @@ body { background: #120c1a; }
 }
 .sb-cabinet { grid-template-rows: auto 1fr; }
 @media (max-width: 700px) { .sb-cabinet { grid-template-rows: none; } }
+.sb-coredet summary { cursor: pointer; }
+.sb-coredet .sb-more { color: #9c92ae; }
+.sb-coredet div { padding-left: 8px; }
