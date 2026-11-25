@@ -271,12 +271,12 @@ export function App() {
         for (const mu of made) {
             if (list.filter((x) => !x.off).length < MAX_UNITS) { list.push(mu); entered.push(mu); continue; }
             const tgt = list.filter((x) => !x.off && x.def.id === mu.def.id).sort((p, q) => (q.abs || 1) - (p.abs || 1))[0];
-            if (tgt) { const { t2, gain } = absorbCalc(tgt, mu); list = list.map((x) => (x.uid === tgt.uid ? t2 : x)); slotUp.push(`${tgt.def.name} 슬롯 강화 +${gain}${t2.lv > tgt.lv ? ` ★${t2.lv}` : ''}`); }
+            if (tgt) { const { t2, gain } = absorbCalc(tgt, mu); list = list.map((x) => (x.uid === tgt.uid ? t2 : x)); slotUp.push(`${tgt.def.name}|${gain}|${t2.lv}`); }
             else { list.push({ ...mu, off: true }); benched++; }
         }
         const br = battleRef.current; if (phase === 'battle' && br && !br.result) { const on = list.filter((x) => !x.off); entered.forEach((u) => addAllyToBattle(br, u, on, cores, ups)); }
         if (made.length) parts.push(`${ev.wins.filter((w) => w.kind === 'line').length}줄 소환 ${made.length}기`); if (bonus) parts.push(`◆줄 코인 +${bonus}`); parts.push(...cx);
-        setMsg(parts.join(' · ') + (slotUp.length ? ` · ${slotUp.join(', ')}(출전 가득 시 같은 유닛이 나오면 자동 강화)` : '') + (benched ? ` · 출전 ${MAX_UNITS}기 가득: ${benched}기는 대기(유닛 선택 후 교체 가능)` : ''));
+        setMsg(parts.join(' · ') + (slotUp.length ? ` · ${Object.entries(slotUp.reduce((m: Record<string, [number, number]>, s) => { const [n, gn, lv] = s.split('|'); const p = m[n] || [0, 0]; m[n] = [p[0] + Number(gn), Math.max(p[1], Number(lv))]; return m; }, {})).map(([n, v]) => `${n} 슬롯 강화 +${v[0]}${v[1] > 1 ? ` (★${v[1]})` : ''}`).join(', ')}` : '') + (benched ? ` · 출전 ${MAX_UNITS}기 가득: ${benched}기는 대기(유닛 선택 후 교체 가능)` : ''));
         setUnits(list);
         setPend(null); setFlash(true); setUndo(null); setTimeout(() => setFlash(false), 900);
     };
