@@ -14,7 +14,7 @@ import fontRegular from './fonts/Galmuri11.woff2';
 import fontBold from './fonts/Galmuri11-Bold.woff2';
 const BG_SRC: Record<string, string> = { grotto, forest: bgforest, canopy: bgcanopy, tundra: bgtundra, hollow: bghollow, mesa: bgmesa, kiln: bgkiln, sodium: bgsodium };
 import {
-    ALLIES, MAX_UNITS, lineSurge, MAX_ROSTER, PROMOS2, PROMO2_DESC, REGIONS, RARITY_NAME, RARITY_COLOR, STAGES_PER_REGION, W, H, MAX_LV, MAX_ENH, STAR_AT, IMP_SLOTS, starOf, absFromStar, CORES, MAX_CORES, rollCores, addAllyToBattle, lineSurge, GIMMICKS, UPS, MAX_UP_STACK, rollUps, buildStage, cellPos, drawBattle, drawSprite, iconDraw, allUrls, registerImg,
+    ALLIES, MAX_UNITS, lineSurge, GRID_LINES, MAX_ROSTER, PROMOS2, PROMO2_DESC, REGIONS, RARITY_NAME, RARITY_COLOR, STAGES_PER_REGION, W, H, MAX_LV, MAX_ENH, STAR_AT, IMP_SLOTS, starOf, absFromStar, CORES, MAX_CORES, rollCores, addAllyToBattle, lineSurge, GIMMICKS, UPS, MAX_UP_STACK, rollUps, buildStage, cellPos, drawBattle, drawSprite, iconDraw, allUrls, registerImg,
     rollRarity, rollUnit, startBattle, step, synergy, synergyBonus, unitMult, enhCost, shardValue, type Battle, type Unit,
   assignCells, optimizeFormation, unitPower, ENGRAVINGS, MAX_ENG, PROMOS, PROMO_DESC, engIndexOf, unitHp, unitAtk, unitHeal, CELL_X, evalGrid, rollCell, rollSymbolUnit, SYMBOLS, LINE_SUMMON, SPECIAL_SHARDS, type GridCell,
 } from './game';
@@ -249,6 +249,8 @@ export function App() {
         const fin: GridCell[] = Array.from({ length: 9 }, (_, i) => (base && keep[i % 3] ? base[i] : rollCell()));
         setHeld([false, false, false]); setUndo(null);
         const cols = [0, 1, 2]; const stopAt = [650, 1000, 1350];
+        const near = GRID_LINES.some((l) => l[0] % 3 === 0 && l[1] % 3 === 1 && fin[l[0]].u === fin[l[1]].u); // 앞 두 칸이 같으면 마지막 릴을 늦게 멈춤(기대감 연출, 우리 설계·임시)
+        if (near) { stopAt[2] = 2100; setMsg('두 칸 일치… 마지막 릴이 천천히 멈춥니다'); }
         const t0 = performance.now();
         const iv = setInterval(() => {
             const el = performance.now() - t0;
