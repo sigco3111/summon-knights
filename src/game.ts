@@ -572,7 +572,7 @@ export const SYMBOLS: { id: string; name: string; group: number[] }[] = [
     { id: 'gem', name: '조각', group: [] },
 ];
 const SYM_W = [58, 56, 46, 30, 20, 14]; const SPECIAL_P = 0.06;
-export const LINE_SUMMON = 3; export const SPECIAL_SHARDS = 10;
+export const LINE_SUMMON = 1; export const SPECIAL_SHARDS = 10;
 export interface GridCell { u: number }
 export interface GridWin { cells: number[]; kind: 'line' | 'special' }
 export function rollCell(): GridCell {
@@ -593,8 +593,9 @@ export function evalGrid(g: GridCell[]): { wins: GridWin[]; units: number; shard
     return { wins, units, shards };
 }
 const UNIT_W = [24, 22, 22, 18, 14, 12, 12, 12, 10, 10, 12, 12, 12, 12, 10, 10];
-export function rollSymbolUnit(sym: number): { def: UnitDef; r: Rarity } {
+export function rollRarityDup(extra: number): Rarity { const e = Math.max(0, Math.min(6, extra)); const r = Math.random(); const epic = 0.05 + 0.07 * e, rare = 0.25 + 0.05 * e; return r < epic ? 2 : r < epic + rare ? 1 : 0; } // 중복일치 등급 보정(우리 설계·임시): 같은 심볼이 줄 3개 외에 칸에 더 있을수록 영웅/희귀 확률 상승
+export function rollSymbolUnit(sym: number, extra = 0): { def: UnitDef; r: Rarity } {
     const grp = SYMBOLS[sym].group; const tot = grp.reduce((a, i) => a + UNIT_W[i], 0); let r = Math.random() * tot; let pick = grp[0];
     for (const i of grp) { r -= UNIT_W[i]; if (r <= 0) { pick = i; break; } }
-    return { def: ALLIES[pick], r: rollRarity() };
+    return { def: ALLIES[pick], r: extra > 0 ? rollRarityDup(extra) : rollRarity() };
 }

@@ -243,5 +243,7 @@ body { background: #120c1a; }
 .sb-result small { display: block; max-width: 100%; text-align: center; line-height: 1.5; word-break: keep-all; overflow-wrap: anywhere; font-size: 12px; }
 @media (max-width:480px){ .sb-result { font-size: 28px; padding: 8px 10px; } .sb-result small { font-size: 11px; } }
 
-.sb-unit.is-off { opacity: .55; filter: grayscale(.6); }
+.sb-unit { border-style: solid; }
+.sb-unit.is-off { border-style: dashed; background: #120c19; box-shadow: none; }
+.sb-gear { margin-left: 4px; background: transparent; border: 1px solid #6b5a8a; color: #efeaf6; font-size: 16px; line-height: 1; padding: 2px 6px; cursor: pointer; }
 .sb-unit.is-off small { color: #e8b64c; }

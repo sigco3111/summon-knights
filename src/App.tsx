@@ -93,7 +93,7 @@ export function App() {
     const [flash, setFlash] = useState(false);
     const [msg, setMsg] = useState('소환해서 유닛을 모으세요');
     const [kills, setKills] = useState<[number, number]>([0, 0]);
-    const [map, setMap] = useState(false);
+    const [map, setMap] = useState(false); const [settings, setSettings] = useState(false);
     const [formOpen, setFormOpen] = useState(false);
     const [undo, setUndo] = useState<Unit[] | null>(null);
     const fxRef = useRef<FxLayer | null>(null); if (!fxRef.current && typeof document !== 'undefined') fxRef.current = new FxLayer(W, H);
@@ -185,7 +185,7 @@ export function App() {
     };
     const [speed, setSpeed] = useState(1); const speedRef = useRef(1); speedRef.current = speed;
     const [confirmReset, setConfirmReset] = useState(false);
-    useEffect(() => { if (!confirmReset) return; const t = setTimeout(() => setConfirmReset(false), 4000); return () => clearTimeout(t); }, [confirmReset]);
+    useEffect(() => { if (!confirmReset) return; const t = setTimeout(() => setConfirmReset(false), 10000); return () => clearTimeout(t); }, [confirmReset]);
     const resetAll = () => { if (!confirmReset) { setConfirmReset(true); return; } setConfirmReset(false); setUnits([]); setCores([]); setUps([]); setUpOffer(null); setOffer(null); setSpins(0); setNudges(NUDGE_PER_WAVE); setCoins(12); setShards(0); setRegion(0); setStageIdx(0); setCleared({}); battleRef.current = null; setPend(null); setGrid(null); setView(null); setHeld([false, false, false]); setPhase('prep'); setMap(false); setMsg('처음부터 시작'); };
 
     const reg = REGIONS[region];
@@ -264,9 +264,9 @@ export function App() {
     };
     const commit = (g: GridCell[]) => {
         const ev = evalGrid(g);
-        const made: Unit[] = [];
-        for (const w of ev.wins) if (w.kind === 'line') { const sym = g[w.cells[0]].u; for (let k = 0; k < LINE_SUMMON; k++) { const p = rollSymbolUnit(sym); made.push({ uid: uidSeq++, def: p.def, rarity: p.r, cell: -1, lv: 1, enh: 0, abs: 1 }); } }
-        const lineWins = ev.wins.filter((w) => w.kind === 'line'); const cx: string[] = [];
+        const made: Unit[] = []; const cx: string[] = [];
+        { const seenS = new Set<number>(); for (const w of ev.wins) if (w.kind === 'line') { const sym = g[w.cells[0]].u; if (seenS.has(sym)) continue; seenS.add(sym); const extraDup = g.filter((c) => c.u === sym).length - 3; for (let k = 0; k < LINE_SUMMON; k++) { const p = rollSymbolUnit(sym, extraDup); made.push({ uid: uidSeq++, def: p.def, rarity: p.r, cell: -1, lv: 1, enh: 0, abs: 1 }); } if (extraDup > 0) cx.push(`중복일치 +${extraDup}칸: 등급 보정(우리 설계·임시)`); } }
+        const lineWins = ev.wins.filter((w) => w.kind === 'line');
         const mk = (sym: number) => { const p = rollSymbolUnit(sym); made.push({ uid: uidSeq++, def: p.def, rarity: p.r, cell: -1, lv: 1, enh: 0, abs: 1 }); };
         if (cores.includes('duo') && lineWins.length >= 2) { mk(g[lineWins[0].cells[0]].u); cx.push('쌍줄 코어: +1기'); }
         if (cores.includes('quad')) { const seen = new Set<number>(); for (const w of lineWins) { const sym = g[w.cells[0]].u; if (seen.has(sym)) continue; seen.add(sym); if (g.filter((c) => c.u === sym).length >= 4) { mk(sym); cx.push('다중 심볼 코어: +1기'); } } }
@@ -280,7 +280,7 @@ export function App() {
             if (tgt) { const { t2, gain } = absorbCalc(tgt, mu); list = list.map((x) => (x.uid === tgt.uid ? t2 : x)); slotUp.push(`${tgt.def.name}|${gain}|${t2.lv}`); }
             else { list.push({ ...mu, off: true }); benched++; }
         }
-        const br = battleRef.current; if (phase === 'battle' && br && !br.result) { const on = list.filter((x) => !x.off); entered.forEach((u) => addAllyToBattle(br, u, on, cores, ups)); if (lineWins.length) lineSurge(br, lineWins.length, g[lineWins[0].cells[0]].u); setSurgePct(Math.round(((br.surge || 1) - 1) * 100)); if (lineWins.length) { const id = ++boonId.current; setBoonOffer({ lines: lineWins.length, id }); const nl = lineWins.length; setTimeout(() => { if (boonId.current === id) { const b2 = battleRef.current; if (b2 && !b2.result) applyBoon(b2, 'atk', nl); setBoonOffer((o) => (o && o.id === id ? null : o)); } }, 6000); } }
+        const br = battleRef.current; if (phase === 'battle' && br && !br.result) { const on = list.filter((x) => !x.off); entered.forEach((u) => addAllyToBattle(br, u, on, cores, ups)); if (lineWins.length) lineSurge(br, lineWins.length, g[lineWins[0].cells[0]].u); setSurgePct(Math.round(((br.surge || 1) - 1) * 100)); if (lineWins.length) { const id = ++boonId.current; setBoonOffer({ lines: lineWins.length, id }); const nl = lineWins.length; setTimeout(() => { if (boonId.current === id) { const b2 = battleRef.current; if (b2 && !b2.result) applyBoon(b2, 'atk', nl); setMsg('줄 강화 자동 적용: 공격 +10% x'+nl+'줄 (우리 설계·임시)'); setBoonOffer((o) => (o && o.id === id ? null : o)); } }, 6000); } }
         if (made.length) parts.push(`${ev.wins.filter((w) => w.kind === 'line').length}줄 소환 ${made.length}기`); if (phase === 'battle' && lineWins.length) parts.push(`줄 기세 공격 +${lineWins.length * 6}%(당첨 심볼 계열 +${lineWins.length * 12}%)·체력 회복`); if (bonus) parts.push(`◆줄 코인 +${bonus}`); parts.push(...cx);
         setMsg(parts.join(' · ') + (slotUp.length ? ` · ${Object.entries(slotUp.reduce((m: Record<string, [number, number]>, s) => { const [n, gn, lv] = s.split('|'); const p = m[n] || [0, 0]; m[n] = [p[0] + Number(gn), Math.max(p[1], Number(lv))]; return m; }, {})).map(([n, v]) => `${n} 슬롯 강화 +${v[0]}${v[1] > 1 ? ` (★${v[1]})` : ''}`).join(', ')}` : '') + (benched ? ` · 출전 ${MAX_UNITS}기 가득: ${benched}기는 대기(유닛 선택 후 교체 가능)` : ''));
         setUnits(list);
@@ -350,7 +350,7 @@ export function App() {
     return <div className="sb-app">
         <div className="sb-top">
             <button type="button" className="sb-stage" onClick={() => setMap(true)} disabled={phase === 'battle'}><b>{reg.id} {reg.name}</b><span>{stage.label} {stage.kind}</span></button>
-            <div className="sb-res"><span className="sb-coin" title="소환 코인">●</span><b>{coins}</b></div>
+            <div className="sb-res"><span className="sb-coin" title="소환 코인">●</span><b>{coins}</b><button type="button" className="sb-gear" aria-label="설정" onClick={() => setSettings(true)}>⚙</button></div>
         </div>
         <div className="sb-cabinet">
         <div className="sb-field">
@@ -412,6 +412,12 @@ export function App() {
                 <Icon sheet={u.def.sheet} ready={ready} lv={u.lv} /><span className="sb-lv">{'★'.repeat(u.lv)}{u.promo2 ? '◈◈' : u.promo ? '◈' : ''}{u.eng && u.eng.some(Boolean) ? '✦' : ''}</span><small>{u.off ? '대기' : u.def.role}</small>
             </button>)}
         </div>
+        {settings && <div className="sb-map" role="dialog" aria-label="설정">
+            <div className="sb-maphead"><b>설정</b><button type="button" className="sb-btn sm ghost" onClick={() => { setSettings(false); setConfirmReset(false); }}>닫기</button></div>
+            <div className="sb-xfer"><b>게임 초기화</b><small>보유 유닛·코인·클리어 기록·코어·강화가 모두 처음 상태로 돌아갑니다. 되돌릴 수 없으니 먼저 지역 메뉴의 저장 코드를 보관하세요. 전투 중에는 초기화할 수 없습니다.</small>
+                <div><button type="button" className="sb-btn sm" disabled={phase === 'battle'} onClick={() => { const was = confirmReset; resetAll(); if (was) setSettings(false); }}>{confirmReset ? '정말 초기화 (한 번 더 누르면 실행, 10초 안에)' : '게임 초기화'}</button>{confirmReset && <> <button type="button" className="sb-btn sm ghost" onClick={() => setConfirmReset(false)}>취소</button></>}</div></div>
+            <small>대기 유닛: 점선 프레임 / 출전 유닛: 실선 프레임 (색은 그대로)</small>
+        </div>}
         {map && <div className="sb-map" role="dialog" aria-label="지역">
             <div className="sb-maphead"><b>지역</b><button type="button" className="sb-btn sm ghost" onClick={() => setMap(false)}>닫기</button></div>
             {REGIONS.map((r, ri) => {
@@ -429,7 +435,6 @@ export function App() {
             <div className="sb-xfer"><b>저장 코드</b><small>자동 저장이 안 되는 환경에서는 코드를 복사해 보관하세요.</small>
                 <textarea value={xfer} onChange={(e) => setXfer(e.target.value)} rows={3} aria-label="저장 코드" />
                 <div><button type="button" className="sb-btn sm ghost" onClick={exportSave}>내보내기</button> <button type="button" className="sb-btn sm ghost" onClick={importSave} disabled={phase === 'battle' || !xfer}>불러오기</button></div></div>
-            <button type="button" className="sb-btn sm ghost" onClick={resetAll}>{confirmReset ? '한 번 더 누르면 초기화' : '진행 초기화'}</button>
             <p className="sb-credit">스프라이트: LuizMelo 팩(Hero Knight 1-2, Fantasy Warrior, Medieval Warrior 1-3, Medieval King 1-2, Martial Hero 1-3, Huntress 1-2, Evil Wizard 1-3, Fire Worm, Monsters Creatures Fantasy 1-2), Wizard Pack. 보스(3-8지역): chierit (CC-BY 4.0) — Boss: Demon Slime, Boss: Frost Guardian, Free Cthulhu, Elementals: Crystal Mauler / Fire Knight / Wind Hashashin (chierit.itch.io). 배경: 8개 지역 모두 AI 생성(쿼터뷰 전장 배경).</p>
         </div>}
     </div>;
