@@ -195,7 +195,7 @@ export function App() {
     const board = units.filter((u) => !u.off); const benchN = units.length - board.length;
     const [diff, setDiffS] = useState<number>(() => { try { return Math.min(2, Math.max(0, parseInt(localStorage.getItem('sk-diff') || '0', 10) || 0)); } catch { return 0; } });
     const setDiff = (d: number) => { setDiffS(d); try { localStorage.setItem('sk-diff', String(d)); } catch { /* */ } };
-    const DIFFS = [{ n: '이지', m: 1.3, r: 1, a: 1.14 }, { n: '노멀', m: 1.8, r: 1.4, a: 1.34 }, { n: '하드', m: 2.4, r: 2, a: 1.55 }]; // 우리 설계, 임시(미측정)
+    const DIFFS = [{ n: '이지', m: 1.3, r: 1, a: 2.5 }, { n: '노멀', m: 1.5, r: 1.4, a: 4 }, { n: '하드', m: 1.8, r: 2, a: 6 }]; // 우리 설계, 임시(미측정)
     const cycMult = 1 + 0.45 * (cycle - 1); const cycRew = 1 + 0.25 * (cycle - 1); // 회차 보정(우리 설계·임시, 미측정)
     const stage = (() => { const s0 = buildStage(reg, stageIdx); const d = DIFFS[diff]; return { ...s0, atkBoost: (d as { a?: number }).a || 1, mult: s0.mult * d.m * cycMult, reward: Math.round(s0.reward * d.r * cycRew) }; })();
 
