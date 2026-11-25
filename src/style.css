@@ -287,3 +287,12 @@ body { background: #120c1a; }
 .sb-matgrid { grid-auto-rows: max-content; align-items: stretch; }
 .sb-info .sb-matgrid .sb-btn.sm { height: auto; min-height: 44px; padding: 6px 8px; white-space: normal; overflow: visible; line-height: 1.25; align-items: flex-start; }
 .sb-info .sb-matgrid .sb-btn.sm small { white-space: normal; overflow-wrap: anywhere; }
+
+.sb-autorow{margin:8px 0}
+.sb-switch{font-family:inherit;display:flex;align-items:center;gap:10px;width:100%;min-height:48px;padding:6px 12px;border-radius:26px;border:2px solid #6b5a3a;background:#2a2230;color:#cbbfa6;font-size:15px;font-weight:400;cursor:pointer;text-align:left}
+.sb-switch .sb-knob{position:relative;flex:none;width:46px;height:26px;border-radius:13px;background:#555;transition:background .15s}
+.sb-switch .sb-knob::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#eee;transition:left .15s}
+.sb-switch.on{background:#1f4a2c;border-color:#7fd68f;color:#e8ffe8}
+.sb-switch.on .sb-knob{background:#3fb760}
+.sb-switch.on .sb-knob::after{left:23px}
+.sb-autodesc{font-size:12px;margin:4px 4px 0;opacity:.85}
