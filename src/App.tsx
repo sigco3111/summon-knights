@@ -158,7 +158,7 @@ export function App() {
     }, []);
 
     const [save, setSave, saved] = useLocalState<{ coins: number; shards: number; units: number[][]; region: number; stage: number; cleared: Record<string, boolean>; cores?: string[]; ups?: string[]; pend?: { g: number[][]; rr: boolean } | null } | null>('slotbound.save.v1', null);
-    const restored = useRef(false);
+    const restored = useRef(false); const [loaded, setLoaded] = useState(false); // 복원 상태가 반영된 렌더부터만 자동 저장(복원 직전 빈 상태가 저장을 덮는 틈 방지)
     useEffect(() => {
         if (!saved.ready || restored.current) return; restored.current = true;
         if (save) {
@@ -168,11 +168,12 @@ export function App() {
             if (save.pend && save.pend.g.length === 9) { const pg = save.pend.g.map((q) => ({ u: q[0] })); if (pg.every((c) => SYMBOLS[c.u])) { setGrid(pg); setView(pg); setPend({ grid: pg, rerolled: !!save.pend.rr }); } }
             setMsg('저장된 진행을 불러왔습니다');
         }
+        setLoaded(true);
     }, [saved.ready]); // eslint-disable-line
     useEffect(() => {
-        if (!restored.current || phase === 'battle') return;
+        if (!restored.current || !loaded || phase === 'battle') return;
         setSave({ coins, shards, units: units.map((u) => [ALLIES.indexOf(u.def), u.rarity, u.lv, u.enh, u.cell, u.promo || 0, ...(u.eng || [0, 0, 0, 0]), u.abs || 1, u.off ? 1 : 0, u.promo2 || 0]), region, stage: stageIdx, cleared, cores, ups, pend: pend ? { g: pend.grid.map((c) => [c.u, 0]), rr: pend.rerolled } : null });
-    }, [coins, shards, units, region, stageIdx, cleared, phase, pend, cores, ups]); // eslint-disable-line
+    }, [coins, shards, units, region, stageIdx, cleared, phase, pend, cores, ups, loaded]); // eslint-disable-line
     const [xfer, setXfer] = useState('');
     const exportSave = () => setXfer(JSON.stringify({ coins, shards, units: units.map((u) => [ALLIES.indexOf(u.def), u.rarity, u.lv, u.enh, u.cell, u.promo || 0, ...(u.eng || [0, 0, 0, 0]), u.abs || 1, u.off ? 1 : 0, u.promo2 || 0]), region, stage: stageIdx, cleared, cores, ups }));
     const importSave = () => {
