@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocalState } from '@instinct/files';
 import { FxLayer } from './fxlayer';
+import { Dashboard, Stats, emptyStats, normStats } from './dash';
 import { drawSymbol } from './icons';
 import grotto from './photos/grotto.jpg';
 import bgforest from './photos/forest.jpg';
@@ -162,6 +163,7 @@ export function App() {
     }, []);
 
     const [save, setSave, saved] = useLocalState<{ coins: number; shards: number; units: number[][]; region: number; stage: number; cleared: Record<string, boolean>; cyc?: number; uo?: string[] | null; co?: string[] | null; uq?: number; cq?: number; cores?: string[]; ups?: string[]; pend?: { g: number[][]; rr: boolean } | null } | null>('slotbound.save.v1', null);
+    const [stats, setStats] = useState<Stats>(emptyStats); const [statsOpen, setStatsOpen] = useState(false);
     const restored = useRef(false); const [loaded, setLoaded] = useState(false); // 복원 상태가 반영된 렌더부터만 자동 저장(복원 직전 빈 상태가 저장을 덮는 틈 방지)
     useEffect(() => {
         if (!saved.ready || restored.current) return; restored.current = true;
@@ -171,27 +173,28 @@ export function App() {
             { const okU = (a: unknown) => Array.isArray(a) && a.length > 0 && a.every((x) => UPS.some((d) => d.id === x)); const okC = (a: unknown) => Array.isArray(a) && a.length > 0 && a.every((x) => CORES.some((c) => c.id === x)); setCycle(Math.max(1, Math.min(99, (save.cyc as number) | 0 || 1))); if (okU(save.uo)) setUpOffer(save.uo as string[]); if (okC(save.co)) setOffer(save.co as string[]); setUpQ(Math.max(0, (save.uq as number) | 0)); setCoreQ(Math.max(0, (save.cq as number) | 0)); }
             { const sv = save as unknown as { cores?: string[]; ups?: string[] }; if (Array.isArray(sv.cores)) setCores(sv.cores.filter((x) => CORES.some((c) => c.id === x)).slice(0, MAX_CORES)); if (Array.isArray(sv.ups)) setUps(sv.ups.filter((x) => UPS.some((d) => d.id === x)).slice(0, 40)); }
             if (save.pend && save.pend.g.length === 9) { const pg = save.pend.g.map((q) => ({ u: q[0] })); if (pg.every((c) => SYMBOLS[c.u])) { setGrid(pg); setView(pg); setPend({ grid: pg, rerolled: !!save.pend.rr }); } }
+            if ((save as unknown as { stats?: unknown }).stats) setStats(normStats((save as unknown as { stats?: unknown }).stats));
             setMsg('저장된 진행을 불러왔습니다');
         }
         setLoaded(true);
     }, [saved.ready]); // eslint-disable-line
     useEffect(() => {
         if (!restored.current || !loaded || phase === 'battle') return;
-        setSave({ coins, shards, units: units.map((u) => [ALLIES.indexOf(u.def), u.rarity, u.lv, u.enh, u.cell, u.promo || 0, ...(u.eng || [0, 0, 0, 0]), u.abs || 1, u.off ? 1 : 0, u.promo2 || 0]), region, stage: stageIdx, cleared, cyc: cycle, uo: upOffer, co: offer, uq: upQ, cq: coreQ, cores, ups, pend: pend ? { g: pend.grid.map((c) => [c.u, 0]), rr: pend.rerolled } : null });
-    }, [coins, shards, units, region, stageIdx, cleared, phase, pend, cores, ups, loaded, cycle, upOffer, offer, upQ, coreQ]); // eslint-disable-line
+        setSave({ coins, shards, units: units.map((u) => [ALLIES.indexOf(u.def), u.rarity, u.lv, u.enh, u.cell, u.promo || 0, ...(u.eng || [0, 0, 0, 0]), u.abs || 1, u.off ? 1 : 0, u.promo2 || 0]), region, stage: stageIdx, cleared, cyc: cycle, uo: upOffer, co: offer, uq: upQ, cq: coreQ, cores, ups, stats, pend: pend ? { g: pend.grid.map((c) => [c.u, 0]), rr: pend.rerolled } : null });
+    }, [stats, coins, shards, units, region, stageIdx, cleared, phase, pend, cores, ups, loaded, cycle, upOffer, offer, upQ, coreQ]); // eslint-disable-line
     const [xfer, setXfer] = useState('');
-    const exportSave = () => setXfer(JSON.stringify({ coins, shards, units: units.map((u) => [ALLIES.indexOf(u.def), u.rarity, u.lv, u.enh, u.cell, u.promo || 0, ...(u.eng || [0, 0, 0, 0]), u.abs || 1, u.off ? 1 : 0, u.promo2 || 0]), region, stage: stageIdx, cleared, cyc: cycle, uo: upOffer, co: offer, uq: upQ, cq: coreQ, cores, ups }));
+    const exportSave = () => setXfer(JSON.stringify({ coins, shards, units: units.map((u) => [ALLIES.indexOf(u.def), u.rarity, u.lv, u.enh, u.cell, u.promo || 0, ...(u.eng || [0, 0, 0, 0]), u.abs || 1, u.off ? 1 : 0, u.promo2 || 0]), region, stage: stageIdx, cleared, cyc: cycle, uo: upOffer, co: offer, uq: upQ, cq: coreQ, cores, ups, stats }));
     const importSave = () => {
         try {
             const q = JSON.parse(xfer); if (!q || !Array.isArray(q.units)) throw new Error('x');
             setUnits(((l: Unit[]) => { let n = 0; return l.map((u) => (u.off ? u : ++n <= MAX_UNITS ? u : { ...u, off: true })); })(q.units.map((a: number[]) => ({ uid: uidSeq++, def: ALLIES[a[0]], rarity: a[1] as 0 | 1 | 2, lv: a[2], enh: a[3], cell: a[4], promo: a[5] || 0, eng: [a[6] || 0, a[7] || 0, a[8] || 0, a[9] || 0], abs: a[10] || absFromStar(a[1], a[2]), off: a[11] === 1, promo2: a[12] || 0 })).filter((u: Unit) => u.def)));
-            setCoins(q.coins | 0); setShards(q.shards | 0); setRegion(Math.min(q.region | 0, REGIONS.length - 1)); setStageIdx(q.stage | 0); setCleared(q.cleared || {}); setCycle(Math.max(1, Math.min(99, q.cyc | 0 || 1))); setUps(Array.isArray(q.ups) ? q.ups.filter((x: string) => UPS.some((d) => d.id === x)).slice(0, 40) : []); setUpOffer(null); setCores(Array.isArray(q.cores) ? q.cores.filter((x: string) => CORES.some((c) => c.id === x)).slice(0, MAX_CORES) : []); setOffer(null); setSpins(0); setNudges(NUDGE_PER_WAVE); battleRef.current = null; setPend(null); setGrid(null); setView(null); setPhase('prep'); setMsg('불러왔습니다'); setMap(false);
+            setCoins(q.coins | 0); setShards(q.shards | 0); setRegion(Math.min(q.region | 0, REGIONS.length - 1)); setStageIdx(q.stage | 0); setCleared(q.cleared || {}); setStats(normStats(q.stats)); setCycle(Math.max(1, Math.min(99, q.cyc | 0 || 1))); setUps(Array.isArray(q.ups) ? q.ups.filter((x: string) => UPS.some((d) => d.id === x)).slice(0, 40) : []); setUpOffer(null); setCores(Array.isArray(q.cores) ? q.cores.filter((x: string) => CORES.some((c) => c.id === x)).slice(0, MAX_CORES) : []); setOffer(null); setSpins(0); setNudges(NUDGE_PER_WAVE); battleRef.current = null; setPend(null); setGrid(null); setView(null); setPhase('prep'); setMsg('불러왔습니다'); setMap(false);
         } catch { setMsg('저장 코드를 읽지 못했습니다'); }
     };
     const [speed, setSpeed] = useState(1); const speedRef = useRef(1); speedRef.current = speed;
     const [confirmReset, setConfirmReset] = useState(false);
     useEffect(() => { if (!confirmReset) return; const t = setTimeout(() => setConfirmReset(false), 10000); return () => clearTimeout(t); }, [confirmReset]);
-    const resetAll = () => { if (!confirmReset) { setConfirmReset(true); return; } setConfirmReset(false); setUnits([]); setCores([]); setUps([]); setUpOffer(null); setOffer(null); setUpQ(0); setCoreQ(0); setCycle(1); setSpins(0); setNudges(NUDGE_PER_WAVE); setCoins(12); setShards(0); setRegion(0); setStageIdx(0); setCleared({}); battleRef.current = null; setPend(null); setGrid(null); setView(null); setHeld([false, false, false]); setPhase('prep'); setMap(false); setMsg('처음부터 시작'); };
+    const resetAll = () => { if (!confirmReset) { setConfirmReset(true); return; } setConfirmReset(false); setUnits([]); setCores([]); setUps([]); setUpOffer(null); setOffer(null); setUpQ(0); setCoreQ(0); setCycle(1); setSpins(0); setNudges(NUDGE_PER_WAVE); setCoins(12); setShards(0); setRegion(0); setStageIdx(0); setCleared({}); setStats(emptyStats()); battleRef.current = null; setPend(null); setGrid(null); setView(null); setHeld([false, false, false]); setPhase('prep'); setMap(false); setMsg('처음부터 시작'); };
 
     const reg = REGIONS[region];
     const board = units.filter((u) => !u.off); const benchN = units.length - board.length;
@@ -211,7 +214,7 @@ export function App() {
                 for (let k = 0; k < speedRef.current; k++) step(b, dt);
                 if (b.events) { for (const e of b.events.splice(0)) fxRef.current?.add(e); } fxRef.current?.update(dt * speedRef.current);
                 acc += dt; if (acc > 150) { acc = 0; setKills([b.kills, b.total]); }
-                if (b.loot && b.loot > lootApplied.current) { const d = b.loot - lootApplied.current; lootApplied.current = b.loot; setCoins((c) => c + d); }
+                if (b.loot && b.loot > lootApplied.current) { const d = b.loot - lootApplied.current; lootApplied.current = b.loot; setCoins((c) => c + d); setStats((x) => ({ ...x, ce: x.ce + d })); }
                 if (b.result && phaseRef.current === 'battle') {
                     setKills([b.kills, b.total]);
                     if (!b.rewarded) {
@@ -219,12 +222,12 @@ export function App() {
                         const st = b.stage;
                         if (b.result === 'win') {
                             setCleared((c) => ({ ...c, [st.label]: true }));
-                            const rw = Math.round(st.reward * (coresRef.current.includes('purse') ? 1.25 : 1)) + 2 * upsRef.current.filter((x) => x === 'loot').length; setCoins((c) => c + rw);
+                            const rw = Math.round(st.reward * (coresRef.current.includes('purse') ? 1.25 : 1)) + 2 * upsRef.current.filter((x) => x === 'loot').length; setCoins((c) => c + rw); setStats((x) => ({ ...x, bw: x.bw + 1, cs: x.cs + 1, bs: Math.max(x.bs, x.cs + 1), kl: x.kl + b.kills, ce: x.ce + rw, sc: { ...x.sc, [st.label]: (x.sc[st.label] || 0) + 1 } }));
                             { const ru = rollUps(upsRef.current).map((x) => x.id); if (ru.length) { if (autoRunRef.current && upOfferRef.current) setUpQ((n) => n + 1); else setUpOffer(ru); } }
                             if (coresRef.current.length < MAX_CORES) { if (autoRunRef.current && offerRef.current) setCoreQ((n) => n + 1); else setOffer(rollCores(coresRef.current).map((x) => x.id)); }
                             setMsg(`승리 · 코인 +${rw}`);
                         } else {
-                            setCoins((c) => c + 1);
+                            setCoins((c) => c + 1); setStats((x) => ({ ...x, bl: x.bl + 1, cs: 0, kl: x.kl + b.kills, ce: x.ce + 1 }));
                             setMsg('패배 · 코인 +1 · 더 소환하고 재도전');
                         }
                     }
@@ -238,6 +241,7 @@ export function App() {
         return () => cancelAnimationFrame(raf);
     }, [ready]);
 
+    useEffect(() => { const id = window.setInterval(() => { if (document.visibilityState === 'visible') setStats((x) => ({ ...x, ps: x.ps + 10 })); }, 10000); return () => window.clearInterval(id); }, []);
     const heldCount = held.filter(Boolean).length;
     const [spins, setSpins] = useState(0); const [nudges, setNudges] = useState(NUDGE_PER_WAVE);
     useEffect(() => { setSpins(0); setNudges(NUDGE_PER_WAVE); }, [region, stageIdx]);
@@ -252,7 +256,7 @@ export function App() {
         if (units.length >= MAX_ROSTER && !spinning) { setMsg(`보유 ${units.length}/${MAX_ROSTER} 가득: 더 이상 소환할 수 없습니다. 흡수로 정리하세요`); return; }
         if (spinning || coins < spinCost) return;
         if (pend) setPend(null);
-        setCoins((c) => c - spinCost); setSpins((n) => n + 1); setSpinning(true); setSel(null); setFlash(false);
+        setCoins((c) => c - spinCost); setSpins((n) => n + 1); setStats((x) => ({ ...x, sp: x.sp + 1 })); setSpinning(true); setSel(null); setFlash(false);
         const base = grid; const keep = held.slice();
         const fin: GridCell[] = Array.from({ length: 9 }, (_, i) => (base && keep[i % 3] ? base[i] : rollCell()));
         setHeld([false, false, false]); setUndo(null);
@@ -465,7 +469,7 @@ export function App() {
             {!ready && <div className="sb-result">{loadError ? '일부 에셋을 불러오지 못했습니다. 새로고침 해주세요.' : `불러오는 중 ${loadProg}/${urls.length + 10}`}</div>}
         </div>
         <aside className="sb-side">
-        {ending && phase !== 'battle' && <div className="sb-info" style={{ flexDirection: 'column' }}><b>전 지역 클리어 (개발중·임시 엔딩)</b><div>8개 지역, 56전투를 모두 돌파했습니다. 지금 단계에서는 별도 엔딩 연출이 없어, 최종 보스를 다시 도전하거나 지역 지도에서 이전 지역을 다시 플레이할 수 있습니다.</div><button type="button" className="sb-btn sm" onClick={startNextCycle}>{confirmCycle ? `확인: ${cycle + 1}회차 시작 (진행 초기화)` : `다음 회차 시작 (${cycle + 1}회차)`}<small>유닛·코어·강화·코인 유지 / 지역·클리어 기록 초기화</small></button><button type="button" className="sb-btn sm ghost" onClick={() => { setEnding(false); setConfirmCycle(false); }}>닫기</button></div>}
+        {ending && phase !== 'battle' && <div className="sb-info" style={{ flexDirection: 'column' }}><b>전 지역 클리어 (개발중·임시 엔딩)</b><div>8개 지역, 56전투를 모두 돌파했습니다. 지금 단계에서는 별도 엔딩 연출이 없어, 최종 보스를 다시 도전하거나 지역 지도에서 이전 지역을 다시 플레이할 수 있습니다.</div><button type="button" className="sb-btn sm" onClick={startNextCycle}>{confirmCycle ? `확인: ${cycle + 1}회차 시작 (진행 초기화)` : `다음 회차 시작 (${cycle + 1}회차)`}<small>유닛·코어·강화·코인 유지 / 지역·클리어 기록 초기화</small></button><button type="button" className="sb-btn sm" onClick={() => setStatsOpen(true)}>통계 대시보드 보기</button><button type="button" className="sb-btn sm ghost" onClick={() => { setEnding(false); setConfirmCycle(false); }}>닫기</button></div>}
         {(upOffer || offer) && phase === 'battle' && <button type="button" className="sb-btn sm ghost" onClick={() => setRewOpen(!rewOpen)} style={{ margin: '0 8px' }}>{rewOpen ? '보상 선택 접기' : `보상 선택 대기 ${(upOffer ? 1 : 0) + (offer ? 1 : 0) + upQ + coreQ}회: 열기`}</button>}
         {upOffer && (phase !== 'battle' || rewOpen) && <div className="sb-info" style={{ flexDirection: 'column' }}><b>승리 보상: 강화 선택 (개발중·임시, 우리 설계){upQ > 0 ? ` · 대기 ${upQ}회 더` : ''}</b>{upOffer.map((id) => { const d = UPS.find((x) => x.id === id)!; return <button key={id} type="button" className="sb-btn sm" onClick={() => pickUp(id)}>{d.name} ({ups.filter((x) => x === id).length}/{MAX_UP_STACK})<small>{d.desc}</small></button>; })}</div>}
         {offer && (phase !== 'battle' || rewOpen) && <div className="sb-info" style={{ flexDirection: 'column' }}><b>코어 선택 (개발중·임시){coreQ > 0 ? ` · 대기 ${coreQ}회 더` : ''}</b>{offer.map((id) => { const c = CORES.find((x) => x.id === id)!; return <button key={id} type="button" className="sb-btn sm" onClick={() => pickCore(id)}>{c.name}<small>{c.orig ? '[원작 문구] ' : '[우리 설계] '}{c.desc}</small></button>; })}</div>}
@@ -547,10 +551,12 @@ export function App() {
         </div>
         {settings && <div className="sb-map" role="dialog" aria-label="설정">
             <div className="sb-maphead"><b>설정</b><button type="button" className="sb-btn sm ghost" onClick={() => { setSettings(false); setConfirmReset(false); }}>닫기</button></div>
+            <div className="sb-xfer"><b>통계</b><small>전투·소환·코인·지역 진행을 그래프로 봅니다.</small><div><button type="button" className="sb-btn sm" onClick={() => setStatsOpen(true)}>통계 대시보드 열기</button></div></div>
             <div className="sb-xfer"><b>게임 초기화</b><small>보유 유닛·코인·클리어 기록·코어·강화가 모두 처음 상태로 돌아갑니다. 되돌릴 수 없으니 먼저 지역 메뉴의 저장 코드를 보관하세요. 전투 중에는 초기화할 수 없습니다.</small>
                 <div><button type="button" className="sb-btn sm" disabled={phase === 'battle'} onClick={() => { const was = confirmReset; resetAll(); if (was) setSettings(false); }}>{confirmReset ? '정말 초기화 (한 번 더 누르면 실행, 10초 안에)' : '게임 초기화'}</button>{confirmReset && <> <button type="button" className="sb-btn sm ghost" onClick={() => setConfirmReset(false)}>취소</button></>}</div></div>
             <small>대기 유닛: 점선 프레임 / 출전 유닛: 실선 프레임 (색은 그대로)</small>
         </div>}
+        {statsOpen && <Dashboard stats={stats} cleared={cleared} units={units} cycle={cycle} cores={cores.length} ups={ups.length} diff={['쉬움', '노멀', '하드'][diff] || '쉬움'} regions={REGIONS} perRegion={STAGES_PER_REGION} rarityName={RARITY_NAME} rarityColor={RARITY_COLOR} onClose={() => setStatsOpen(false)} />}
         {map && <div className="sb-map" role="dialog" aria-label="지역">
             <div className="sb-maphead"><b>지역</b><button type="button" className="sb-btn sm ghost" onClick={() => setMap(false)}>닫기</button></div>
             {REGIONS.map((r, ri) => {

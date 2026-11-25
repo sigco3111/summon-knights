@@ -299,3 +299,17 @@ body { background: #120c1a; }
 /* 전투 설정 상자는 화면 최하단(보유 유닛 아래)에 배치 */
 .sb-opts { grid-column: 1 / -1; grid-row: auto; margin: 6px 8px 10px 10px; }
 @media (max-width: 700px) { .sb-opts { margin: 6px 8px 10px; } }
+.dash{overflow:auto;max-height:100%}
+.dash-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:6px 0}
+.dash-card{background:rgba(60,40,10,.12);border:1px solid rgba(60,40,10,.4);color:#2b1d0a;border-radius:6px;padding:6px 4px;text-align:center;display:flex;flex-direction:column;gap:2px}
+.dash-card small{font-size:10px;opacity:.7}.dash-card b{font-size:15px}.dash-card em{font-size:10px;opacity:.6;font-style:normal}
+.dash-sec{margin:10px 0;display:flex;flex-direction:column;gap:5px}.dash-sec>b{font-size:12px}
+.dash-donutrow{display:flex;align-items:center;gap:12px}.dash-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}
+.dash-bar{display:flex;align-items:center;gap:6px;font-size:11px}.dash-bar>span{width:88px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dash-bar>div{flex:1;height:9px;background:rgba(60,40,10,.25);border-radius:5px;overflow:hidden}.dash-bar>div>i{display:block;height:100%;background:#5b9bf0}.dash-bar em{width:78px;text-align:right;font-style:normal;opacity:.8}
+.dash-heat{display:flex;flex-direction:column;gap:2px}.dash-hrow{display:flex;gap:2px;align-items:center}.dash-hrow span{width:14px;font-size:10px;opacity:.7}
+.dash-hrow i{flex:1;height:18px;background:rgba(60,40,10,.2);border-radius:3px;font-size:10px;font-style:normal;text-align:center;line-height:18px;color:#fff}.dash-hrow i.on{background:#2f7d4f}
+.dash-stack{display:flex;height:20px;border-radius:5px;overflow:hidden;font-size:10px}.dash-stack i{display:flex;align-items:center;justify-content:center;font-style:normal;color:#fff;min-width:18px}
+.dash-chips{display:flex;flex-wrap:wrap;gap:5px}.dash-chips span{background:rgba(60,40,10,.15);color:#2b1d0a;border:1px solid rgba(60,40,10,.3);border-radius:10px;padding:2px 8px;font-size:11px}
+.dash-note{opacity:.6;display:block;margin:8px 0 14px}
+.dash{color:#2b1d0a}.dash-sec,.dash-bar,.dash-note{color:#2b1d0a}
