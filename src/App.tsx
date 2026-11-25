@@ -280,7 +280,7 @@ export function App() {
             if (tgt) { const { t2, gain } = absorbCalc(tgt, mu); list = list.map((x) => (x.uid === tgt.uid ? t2 : x)); slotUp.push(`${tgt.def.name}|${gain}|${t2.lv}`); }
             else { list.push({ ...mu, off: true }); benched++; }
         }
-        const br = battleRef.current; if (phase === 'battle' && br && !br.result) { const on = list.filter((x) => !x.off); entered.forEach((u) => addAllyToBattle(br, u, on, cores, ups)); if (lineWins.length) lineSurge(br, lineWins.length, g[lineWins[0].cells[0]].u); }
+        const br = battleRef.current; if (phase === 'battle' && br && !br.result) { const on = list.filter((x) => !x.off); entered.forEach((u) => addAllyToBattle(br, u, on, cores, ups)); if (lineWins.length) lineSurge(br, lineWins.length, g[lineWins[0].cells[0]].u); setSurgePct(Math.round(((br.surge || 1) - 1) * 100)); }
         if (made.length) parts.push(`${ev.wins.filter((w) => w.kind === 'line').length}줄 소환 ${made.length}기`); if (phase === 'battle' && lineWins.length) parts.push(`줄 기세 공격 +${lineWins.length * 6}%(당첨 심볼 계열 +${lineWins.length * 12}%)·체력 회복`); if (bonus) parts.push(`◆줄 코인 +${bonus}`); parts.push(...cx);
         setMsg(parts.join(' · ') + (slotUp.length ? ` · ${Object.entries(slotUp.reduce((m: Record<string, [number, number]>, s) => { const [n, gn, lv] = s.split('|'); const p = m[n] || [0, 0]; m[n] = [p[0] + Number(gn), Math.max(p[1], Number(lv))]; return m; }, {})).map(([n, v]) => `${n} 슬롯 강화 +${v[0]}${v[1] > 1 ? ` (★${v[1]})` : ''}`).join(', ')}` : '') + (benched ? ` · 출전 ${MAX_UNITS}기 가득: ${benched}기는 대기(유닛 선택 후 교체 가능)` : ''));
         setUnits(list);
@@ -328,7 +328,9 @@ export function App() {
         if (!ready || phase !== 'prep') return;
         const c = startBattle(units.filter((u) => !u.off), stage, true, cores, ups); c.events = []; battleRef.current = c;
     }, [units, phase, region, stageIdx, ready]); // eslint-disable-line
+    const [surgePct, setSurgePct] = useState(0); // 전투 중 줄 기세 누적(표시용)
     const startFight = () => {
+        setSurgePct(0);
         if (!reg.ready || board.length === 0) { setMsg('먼저 소환해서 유닛을 모으세요'); return; }
         lootApplied.current = 0; battleRef.current = startBattle(board, stage, false, cores, ups); battleRef.current.events = []; fxRef.current?.clear(); setKills([0, stage.spawns.length]); setPhase('battle'); setMsg(''); setSel(null);
     };
@@ -362,6 +364,7 @@ export function App() {
         {cores.length > 0 && <div className="sb-info" style={{ flexDirection: 'column', gap: 2 }}><b>보유 코어 {cores.length}/{MAX_CORES}</b>{cores.map((id) => <span key={id}>{CORES.find((x) => x.id === id)?.name}: {CORES.find((x) => x.id === id)?.desc}</span>)}</div>}
         <div className="sb-syn"><span className="cnt">필드 유닛 {board.length}/{MAX_BOARD}{benchN ? ` · 대기 ${benchN}` : ''}</span><span>자동 이동 전투</span></div>
         {board.length >= MAX_UNITS && <div className="sb-fnote">출전 {MAX_UNITS}기 가득: 새로 나온 유닛은 대기로 가고, 출전 중인 같은 유닛이 있으면 그 유닛이 자동 강화됩니다(새 유닛만 흡수, 기존 유닛은 소모되지 않음).</div>}
+        {phase === 'battle' && <div className="sb-fnote" style={{ color: surgePct > 0 ? '#ffd36b' : undefined }}>줄 기세 +{surgePct}% (이번 전투, 줄 당첨마다 누적 · 우리 설계·임시)</div>}
         <div className="sb-fnote">난이도 {DIFFS.map((d, i) => <button key={d.n} disabled={phase === 'battle'} onClick={() => setDiff(i)} style={{ margin: '0 3px', padding: '1px 7px', fontWeight: i === diff ? 700 : 400, opacity: i === diff ? 1 : 0.6 }}>{d.n}</button>)} 적 강도 ×{DIFFS[diff].m} · 승리 코인 ×{DIFFS[diff].r} (우리 설계·임시, 미측정)</div>
         {GIMMICKS[reg.id] && <div className="sb-fnote">지역 기믹 [{GIMMICKS[reg.id]!.name}] {GIMMICKS[reg.id]!.desc} (우리 설계·임시)</div>}
         {phase !== 'win' && phase !== 'lose' && <div className="sb-msg">{msg}</div>}
