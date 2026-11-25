@@ -251,7 +251,7 @@ export function App() {
             const el = performance.now() - t0;
             setView(Array.from({ length: 9 }, (_, i) => (el >= stopAt[i % 3] || (base && keep[i % 3]) ? fin[i] : rollCell())));
             if (el >= stopAt[2] + 40) {
-                clearInterval(iv); setView(fin); setGrid(fin); setSpinning(false); setPend({ grid: fin, rerolled: false }); { const e = evalGrid(fin); setMsg(e.units || e.shards ? '한 줄 같은 아이콘 = 소환 (◆줄 = 코인)' : '무당첨 · 리롤 ●1 또는 다시 소환'); };
+                clearInterval(iv); setView(fin); setGrid(fin); setSpinning(false); setPend({ grid: fin, rerolled: false }); { const e = evalGrid(fin); if (!(e.units || e.shards)) setCoins((c) => c + 1); setMsg(e.units || e.shards ? '한 줄 같은 아이콘 = 소환 (◆줄 = 코인)' : '무당첨 · 환급 ●1 · 리롤 ●1 또는 다시 소환'); };
             }
         }, 80);
         void cols;
