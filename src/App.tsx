@@ -271,19 +271,21 @@ export function App() {
         const mk = (sym: number) => { const p = rollSymbolUnit(sym); made.push({ uid: uidSeq++, def: p.def, rarity: p.r, cell: -1, lv: 1, enh: 0, abs: 1 }); };
         if (cores.includes('duo') && lineWins.length >= 2) { mk(g[lineWins[0].cells[0]].u); cx.push('쌍줄 코어: +1기'); }
         if (cores.includes('quad')) { const seen = new Set<number>(); for (const w of lineWins) { const sym = g[w.cells[0]].u; if (seen.has(sym)) continue; seen.add(sym); if (g.filter((c) => c.u === sym).length >= 4) { mk(sym); cx.push('다중 심볼 코어: +1기'); } } }
+        { let onb = board.length, ros = units.length;
+          for (const mu of made) { if (onb < MAX_UNITS) { onb++; ros++; } else if (!units.some((x) => !x.off && x.def.id === mu.def.id)) ros++; }
+          if (ros > MAX_ROSTER) { setMsg(`보유 한도 부족: 이번 당첨 ${made.length}기를 받으면 ${ros}/${MAX_ROSTER}라 확정할 수 없습니다. 당첨은 보존됩니다. 흡수로 ${ros - MAX_ROSTER}자리 이상 비운 뒤 소환 확정을 누르세요`); return; } }
         if (cores.includes('tri') && lineWins.length >= 3) { setCoins((c) => c + 3); cx.push('삼연 코어: 코인 +3'); }
         const bonus = Math.round(ev.shards * 0.6); if (bonus) setCoins((c) => c + bonus);
         const parts: string[] = [];
-        let overflowAbs = 0, overflowCoin = 0; let list = [...units]; let benched = 0; const slotUp: string[] = []; const entered: Unit[] = [];
+        let list = [...units]; let benched = 0; const slotUp: string[] = []; const entered: Unit[] = [];
         for (const mu of made) {
-            if (list.length >= MAX_ROSTER) { const t0 = list.filter((x) => x.def.id === mu.def.id).sort((p, q) => (q.abs || 1) - (p.abs || 1))[0]; if (t0) { const { t2 } = absorbCalc(t0, mu); list = list.map((x) => (x.uid === t0.uid ? t2 : x)); overflowAbs++; } else { setCoins((c) => c + 3); overflowCoin++; } continue; }
             if (list.filter((x) => !x.off).length < MAX_UNITS) { list.push(mu); entered.push(mu); continue; }
             const tgt = list.filter((x) => !x.off && x.def.id === mu.def.id).sort((p, q) => (q.abs || 1) - (p.abs || 1))[0];
             if (tgt) { const { t2, gain } = absorbCalc(tgt, mu); list = list.map((x) => (x.uid === tgt.uid ? t2 : x)); slotUp.push(`${tgt.def.name}|${gain}|${t2.lv}`); }
             else { list.push({ ...mu, off: true }); benched++; }
         }
         const br = battleRef.current; if (phase === 'battle' && br && !br.result) { const on = list.filter((x) => !x.off); entered.forEach((u) => addAllyToBattle(br, u, on, cores, ups)); if (lineWins.length) lineSurge(br, lineWins.length, g[lineWins[0].cells[0]].u); setSurgePct(Math.round(((br.surge || 1) - 1) * 100)); if (lineWins.length) { const id = ++boonId.current; setBoonOffer({ lines: lineWins.length, id }); const nl = lineWins.length; setTimeout(() => { if (boonId.current === id) { const b2 = battleRef.current; if (b2 && !b2.result) { applyBoon(b2, 'atk', nl); setMsg('줄 강화 자동 적용: 공격 +10% x'+nl+'줄 (우리 설계·임시)'); } setBoonOffer((o) => (o && o.id === id ? null : o)); } }, 6000); } }
-        if (made.length) parts.push(`${ev.wins.filter((w) => w.kind === 'line').length}줄 소환 ${made.length}기`); if (phase === 'battle' && lineWins.length) parts.push(`줄 기세 공격 +${lineWins.length * 6}%(당첨 심볼 계열 +${lineWins.length * 12}%)·체력 회복`); if (bonus) parts.push(`◆줄 코인 +${bonus}`); parts.push(...cx); if (overflowAbs || overflowCoin) parts.push(`보유 가득: 초과 ${overflowAbs + overflowCoin}기는 ${overflowAbs ? `흡수 ${overflowAbs}` : ''}${overflowAbs && overflowCoin ? '·' : ''}${overflowCoin ? `코인 +${overflowCoin * 3}` : ''}로 처리`);
+        if (made.length) parts.push(`${ev.wins.filter((w) => w.kind === 'line').length}줄 소환 ${made.length}기`); if (phase === 'battle' && lineWins.length) parts.push(`줄 기세 공격 +${lineWins.length * 6}%(당첨 심볼 계열 +${lineWins.length * 12}%)·체력 회복`); if (bonus) parts.push(`◆줄 코인 +${bonus}`); parts.push(...cx);
         setMsg(parts.join(' · ') + (slotUp.length ? ` · ${Object.entries(slotUp.reduce((m: Record<string, [number, number]>, s) => { const [n, gn, lv] = s.split('|'); const p = m[n] || [0, 0]; m[n] = [p[0] + Number(gn), Math.max(p[1], Number(lv))]; return m; }, {})).map(([n, v]) => `${n} 슬롯 강화 +${v[0]}${v[1] > 1 ? ` (★${v[1]})` : ''}`).join(', ')}` : '') + (benched ? ` · 출전 ${MAX_UNITS}기 가득: ${benched}기는 대기(유닛 선택 후 교체 가능)` : ''));
         setUnits(list);
         setPend(null); setFlash(true); setUndo(null); setTimeout(() => setFlash(false), 900);
@@ -307,7 +309,7 @@ export function App() {
         if (!selUnit || selUnit.lv < 3 || !selUnit.promo || selUnit.promo2) return;
         setUnits(units.map((u) => (u.uid === selUnit.uid ? { ...u, promo2: br + 1 } : u))); setMsg(`${selUnit.def.name} 2차 승급: ${PROMOS2[selUnit.def.role][br]}`);
     };
-    const [busyAuto, setBusyAuto] = useState(false); const [absPlan, setAbsPlan] = useState<{ src: number; tgt: number }[] | null>(null);
+    const [busyAuto, setBusyAuto] = useState(false); const [absPlan, setAbsPlan] = useState<{ items: { src: number; tgt: number }[]; skipped: number } | null>(null); const [mat, setMat] = useState<{ tgt: number; src: number[] } | null>(null);
     const autoDeploy = () => {
         if (phase === 'battle' || busyAuto || units.length === 0) return;
         setBusyAuto(true); setMsg('자동 출전 계산 중... (현재 전투를 모의해 가장 좋은 편성을 고릅니다)');
@@ -320,28 +322,38 @@ export function App() {
             } finally { setBusyAuto(false); }
         }, 30);
     };
+    const isProtected = (u: Unit) => u.lv >= 2 || !!u.promo || !!u.promo2 || u.rarity >= 2 || !!(u.eng && u.eng.some(Boolean));
+    const simAbsorb = (tgt: Unit, srcs: Unit[]) => { let t = tgt; let gain = 0; const notes: string[] = []; for (const sU of srcs) { const r = absorbCalc(t, sU); t = r.t2; gain += r.gain; notes.push(r.note); } return { t, gain, notes }; };
+    const engText = (u: Unit) => ENGRAVINGS.map((e, i) => (u.eng && u.eng[i] ? `${e.name}${u.eng[i]}` : '')).filter(Boolean).join('·') || '없음';
     const planAbsorbAll = () => {
         const byDef = new Map<string, Unit[]>();
-        units.forEach((u) => { const a = byDef.get(u.def.id) || []; a.push(u); byDef.set(u.def.id, a); });
-        const plan: { src: number; tgt: number }[] = [];
+        units.forEach((u) => { const a2 = byDef.get(u.def.id) || []; a2.push(u); byDef.set(u.def.id, a2); });
+        const items: { src: number; tgt: number }[] = []; let skipped = 0;
         byDef.forEach((arr) => {
             if (arr.length < 2) return;
             const tgt = [...arr].sort((p, q) => ((q.abs || 1) - (p.abs || 1)) || (Number(!p.off) - Number(!q.off)) || (q.rarity - p.rarity))[0];
-            arr.filter((u) => u.uid !== tgt.uid && u.off).forEach((u) => plan.push({ src: u.uid, tgt: tgt.uid }));
+            arr.filter((u) => u.uid !== tgt.uid && u.off).forEach((u) => { if (isProtected(u)) skipped++; else items.push({ src: u.uid, tgt: tgt.uid }); });
         });
-        return plan;
+        return { items, skipped };
     };
-    const askAbsorbAll = () => { const plan = planAbsorbAll(); if (!plan.length) { setMsg('일괄 흡수할 대기 중복 유닛이 없습니다. (출전 중인 유닛과 중복 아닌 유닛은 건드리지 않음)'); return; } setAbsPlan(plan); setMsg(`대기 중 같은 유닛 ${plan.length}기를 같은 종류의 가장 강한 유닛에 흡수합니다. 흡수는 되돌릴 수 없으니 확인을 눌러 주세요.`); };
-    const doAbsorbAll = () => {
-        if (!absPlan) return;
+    const askAbsorbAll = () => { const p = planAbsorbAll(); if (!p.items.length) { setMsg(`일괄 흡수할 대기 중복 유닛이 없습니다${p.skipped ? ` (보호 ${p.skipped}기 제외: ★2 이상·영웅·승급·각인 보유)` : ''}`); return; } setMat(null); setAbsPlan(p); setMsg('미리보기를 확인하고 실행을 누르세요. 흡수는 되돌릴 수 없습니다'); };
+    const applyAbsorb = (items: { src: number; tgt: number }[], label: string) => {
         let list = [...units]; let gainSum = 0; let stars = 0; const tg = new Set<number>();
-        for (const { src, tgt } of absPlan) {
-            const s = list.find((u) => u.uid === src); const t = list.find((u) => u.uid === tgt); if (!s || !t) continue;
-            const r = absorbCalc(t, s); gainSum += r.gain; stars += Math.max(0, r.t2.lv - t.lv); tg.add(tgt);
+        for (const { src, tgt } of items) {
+            const s0 = list.find((u) => u.uid === src); const t = list.find((u) => u.uid === tgt); if (!s0 || !t || s0.uid === t.uid || !s0.off) continue;
+            const r = absorbCalc(t, s0); gainSum += r.gain; stars += Math.max(0, r.t2.lv - t.lv); tg.add(tgt);
             list = list.filter((u) => u.uid !== src).map((u) => (u.uid === tgt ? r.t2 : u));
         }
-        setUnits(list); setAbsPlan(null); setSel(null); setAbsorbFor(null);
-        setMsg(`일괄 흡수 완료: ${absPlan.length}기 → ${tg.size}종 유닛, 흡수Lv 합계 +${gainSum}${stars ? ` · ★ 상승 ${stars}단계` : ''} (출전 유닛은 그대로, 우리 설계·임시)`);
+        setUnits(list); setAbsPlan(null); setMat(null); setAbsorbFor(null);
+        setMsg(`${label} 완료: ${items.length}기 → ${tg.size}기 유닛, 흡수Lv 합계 +${gainSum}${stars ? ` · ★ 상승 ${stars}단계` : ''} (출전 유닛은 그대로, 우리 설계·임시)`);
+    };
+    const doAbsorbAll = () => { if (absPlan) applyAbsorb(absPlan.items, '중복 일괄 흡수'); };
+    const openMat = (tgtUid: number) => { setAbsPlan(null); setMat({ tgt: tgtUid, src: [] }); setMsg('재료로 쓸 대기 유닛을 고르세요. 보호 표시(🔒) 유닛은 직접 선택해야 합니다'); };
+    const recommendMat = (tgt: Unit) => {
+        const cand = units.filter((u) => u.off && u.uid !== tgt.uid && !isProtected(u));
+        const absInfo = (u: Unit) => { const ei = engIndexOf(u.def.role); const have = tgt.eng ? tgt.eng[ei] : 0; return u.def.id === tgt.def.id ? 2 : (have === 0 && (tgt.eng || []).filter((x) => x > 0).length < IMP_SLOTS[tgt.rarity]) ? 1 : 0; };
+        const pick = cand.filter((u) => absInfo(u) > 0).sort((p, q) => absInfo(q) - absInfo(p)).slice(0, 12).map((u) => u.uid);
+        setMat({ tgt: tgt.uid, src: pick }); setMsg(pick.length ? `추천 재료 ${pick.length}기 선택(같은 유닛·빈 각인 칸 우선, 보호 유닛 제외). 미리보기를 확인하세요` : '추천할 재료가 없습니다');
     };
     const toggleOff = (uid: number) => {
         const t = units.find((u) => u.uid === uid); if (!t) return;
@@ -437,6 +449,7 @@ export function App() {
                 {selUnit.lv >= 3 && !!selUnit.promo && !selUnit.promo2 && [0, 1].map((br) => <button key={'p2' + br} type="button" className="sb-btn sm" onClick={() => promote2(br)}>2차 승급 {PROMOS2[selUnit.def.role][br]}<small>{PROMO2_DESC[br]} (임시)</small></button>)}
                 {selUnit.lv >= 2 && !selUnit.promo && [0, 1].map((br) => <button key={br} type="button" className="sb-btn sm" onClick={() => promote(br)}>승급 {PROMOS[selUnit.def.role][br]}<small>{PROMO_DESC[br]}</small></button>)}
                 <button type="button" className="sb-btn sm" disabled={phase === 'battle'} onClick={() => toggleOff(selUnit.uid)}>{!selUnit.off ? '출전 제외(대기)' : board.length < MAX_UNITS ? '출전시키기' : '출전 교체'}<small>삭제 아님</small></button>
+                <button type="button" className="sb-btn sm" disabled={phase === 'battle' || units.filter((u) => u.off && u.uid !== selUnit.uid).length < 1} onClick={() => openMat(selUnit.uid)}>재료 일괄 흡수<small>각인·흡수Lv 미리보기</small></button>
                 <button type="button" className={`sb-btn sm${absorbFor === selUnit.uid ? '' : ' ghost'}`} disabled={units.length < 2 || phase === 'battle'} onClick={() => { setAbsorbFor(absorbFor === selUnit.uid ? null : selUnit.uid); setMsg(absorbFor === selUnit.uid ? '' : '흡수할 유닛을 아래 목록에서 누르세요(흡수된 유닛은 사라지고 각인을 줍니다)'); }}>{absorbFor === selUnit.uid ? '흡수 취소' : '다른 유닛 흡수(각인)'}</button>
             </div>
             <div className="sb-fnote">별·승급·각인의 이름과 수치는 우리 설계(임시)입니다. 흡수 레벨로 별이 오르는 구조는 비공식 위키 서술을 따랐습니다. 원작은 분기 승급과 흡수 각인이 있다는 것까지만 확인했습니다.</div>
@@ -446,9 +459,20 @@ export function App() {
         </div>
         <div className="sb-syn" style={{ margin: '4px 8px' }}>
             <button type="button" className="sb-btn sm" disabled={phase === 'battle' || busyAuto || units.length === 0} onClick={autoDeploy}>{busyAuto ? '계산 중...' : '자동 출전'}<small>모의 전투로 최적 {MAX_UNITS}기</small></button>
-            {!absPlan ? <button type="button" className="sb-btn sm" disabled={phase === 'battle' || units.length < 2} onClick={askAbsorbAll}>중복 일괄 흡수<small>대기 중복 → 같은 유닛</small></button>
-                : <><button type="button" className="sb-btn sm" onClick={doAbsorbAll}>흡수 확인 ({absPlan.length}기)<small>되돌릴 수 없음</small></button><button type="button" className="sb-btn sm ghost" onClick={() => setAbsPlan(null)}>취소</button></>}
+            <button type="button" className="sb-btn sm" disabled={phase === 'battle' || units.length < 2} onClick={askAbsorbAll}>중복 일괄 흡수<small>대기 중복 → 같은 유닛</small></button>
         </div>
+        {absPlan && <div className="sb-info" style={{ flexDirection: 'column', gap: 4, margin: '0 8px' }} role="dialog" aria-label="일괄 흡수 확인">
+            <b>중복 일괄 흡수 미리보기 ({absPlan.items.length}기)</b>
+            {Array.from(new Set(absPlan.items.map((x) => x.tgt))).map((tu) => { const t = units.find((u) => u.uid === tu); if (!t) return null; const srcs = absPlan.items.filter((x) => x.tgt === tu).map((x) => units.find((u) => u.uid === x.src)).filter(Boolean) as Unit[]; const r = simAbsorb(t, srcs); return <span key={tu} style={{ fontSize: 11 }}>{t.def.name} ★{t.lv}{r.t.lv > t.lv ? `→★${r.t.lv}` : ''} · 재료 {srcs.length}기 · 흡수Lv {t.abs || 1}→{r.t.abs} · 각인 {engText(t)}→{engText(r.t)}</span>; })}
+            <span style={{ fontSize: 11, color: '#9b92ad' }}>재료는 대기 중인 같은 종류만. 출전 중·★2 이상·영웅·승급·각인 보유 유닛은 보호되어 제외{absPlan.skipped ? ` (보호 제외 ${absPlan.skipped}기)` : ''}.</span>
+            <div className="sb-syn"><button type="button" className="sb-btn sm" onClick={doAbsorbAll}>실행 ({absPlan.items.length}기)<small>되돌릴 수 없음</small></button><button type="button" className="sb-btn sm ghost" onClick={() => setAbsPlan(null)}>취소</button></div>
+        </div>}
+        {mat && (() => { const t = units.find((u) => u.uid === mat.tgt); if (!t) return null; const cands = units.filter((u) => u.off && u.uid !== t.uid); const chosen = mat.src.map((x) => units.find((u) => u.uid === x)).filter(Boolean) as Unit[]; const r = simAbsorb(t, chosen); return <div className="sb-info" style={{ flexDirection: 'column', gap: 4, margin: '0 8px' }} role="dialog" aria-label="재료 흡수">
+            <b>{t.def.name} ★{t.lv} 에 재료 흡수 (대기 유닛 {cands.length}기 중 {chosen.length}기 선택)</b>
+            <div className="sb-syn">{cands.map((u) => { const on = mat.src.includes(u.uid); return <button type="button" key={u.uid} className={`sb-btn sm${on ? '' : ' ghost'}`} onClick={() => setMat({ tgt: t.uid, src: on ? mat.src.filter((x) => x !== u.uid) : [...mat.src, u.uid] })}>{isProtected(u) ? '🔒' : ''}{u.def.name} ★{u.lv}<small>{u.def.role}{u.eng && u.eng.some(Boolean) ? ' · 각인' : ''}{u.def.id === t.def.id ? ' · 같은 유닛' : ''}</small></button>; })}{cands.length === 0 && <span style={{ fontSize: 11 }}>대기 유닛이 없습니다. 출전 제외 후 사용하세요.</span>}</div>
+            {chosen.length > 0 && <span style={{ fontSize: 11 }}>결과: ★{t.lv}{r.t.lv > t.lv ? `→★${r.t.lv}` : ''} · 흡수Lv {t.abs || 1}→{r.t.abs} (+{r.gain}) · 각인 {engText(t)}→{engText(r.t)}{chosen.some(isProtected) ? ' · 🔒 보호 유닛 포함: 별·승급·각인이 사라집니다' : ''}</span>}
+            <div className="sb-syn"><button type="button" className="sb-btn sm" onClick={() => recommendMat(t)}>추천 재료<small>같은 유닛·빈 각인 우선</small></button><button type="button" className="sb-btn sm" disabled={chosen.length === 0} onClick={() => applyAbsorb(chosen.map((x) => ({ src: x.uid, tgt: t.uid })), '재료 일괄 흡수')}>실행 ({chosen.length}기)<small>되돌릴 수 없음</small></button><button type="button" className="sb-btn sm ghost" onClick={() => setMat(null)}>취소</button></div>
+        </div>; })()}
         {units.length >= MAX_ROSTER && <div className="sb-fnote" style={{ color: '#ff8a7a', margin: '0 8px' }}>보유 {units.length}/{MAX_ROSTER} 가득: 더 이상 소환할 수 없어 슬롯이 막혔습니다. 중복 일괄 흡수나 흡수로 정리하세요.</div>}
         {units.length < MAX_ROSTER && units.length >= MAX_ROSTER - 3 && <div className="sb-fnote" style={{ color: '#ffd36b', margin: '0 8px' }}>보유 {units.length}/{MAX_ROSTER}: 곧 가득 찹니다. 한 번에 여러 기가 나오면 초과분은 흡수/코인으로 처리됩니다.</div>}
         <div className="sb-bench">
