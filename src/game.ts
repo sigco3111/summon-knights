@@ -246,6 +246,17 @@ export function lineSurge(b: Battle, lines: number, sym?: number) {
         f.atk = Math.round(f.atk * mm); f.hp = Math.min(f.maxHp, f.hp + f.maxHp * 0.12 * lines); b.events?.push({ k: 'heal', x: f.x, y: f.y - 4, flip: false });
     }
 }
+// 줄 강화 선택(우리 설계, 임시): 전투 중 줄 당첨 후 고르는 추가 강화. atk +10%/줄, heal 최대체력 30%/줄, cd -10%/줄(전투 종료까지)
+export type Boon = 'atk' | 'heal' | 'cd';
+export function applyBoon(b: Battle, kind: Boon, lines: number) {
+    if (b.result || lines < 1) return;
+    for (const f of b.fighters) if (f.team === 'a' && !f.dead) {
+        if (kind === 'atk') f.atk = Math.round(f.atk * Math.pow(1.1, lines));
+        else if (kind === 'heal') f.hp = Math.min(f.maxHp, f.hp + f.maxHp * 0.3 * lines);
+        else f.cd = Math.max(300, Math.round(f.cd * Math.pow(0.9, lines)));
+        b.events?.push({ k: 'heal', x: f.x, y: f.y - 4, flip: false });
+    }
+}
 export function addAllyToBattle(b: Battle, u: Unit, list: Unit[], cores: string[], ups: string[]) {
     if (b.result) return;
     const n = b.fighters.filter((f) => f.team === 'a').length;

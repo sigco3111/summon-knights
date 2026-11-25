@@ -14,7 +14,7 @@ import fontRegular from './fonts/Galmuri11.woff2';
 import fontBold from './fonts/Galmuri11-Bold.woff2';
 const BG_SRC: Record<string, string> = { grotto, forest: bgforest, canopy: bgcanopy, tundra: bgtundra, hollow: bghollow, mesa: bgmesa, kiln: bgkiln, sodium: bgsodium };
 import {
-    ALLIES, MAX_UNITS, lineSurge, GRID_LINES, MAX_ROSTER, PROMOS2, PROMO2_DESC, REGIONS, RARITY_NAME, RARITY_COLOR, STAGES_PER_REGION, W, H, MAX_LV, MAX_ENH, STAR_AT, IMP_SLOTS, starOf, absFromStar, CORES, MAX_CORES, rollCores, addAllyToBattle, lineSurge, GIMMICKS, UPS, MAX_UP_STACK, rollUps, buildStage, cellPos, drawBattle, drawSprite, iconDraw, allUrls, registerImg,
+    ALLIES, MAX_UNITS, lineSurge, applyBoon, GRID_LINES, MAX_ROSTER, PROMOS2, PROMO2_DESC, REGIONS, RARITY_NAME, RARITY_COLOR, STAGES_PER_REGION, W, H, MAX_LV, MAX_ENH, STAR_AT, IMP_SLOTS, starOf, absFromStar, CORES, MAX_CORES, rollCores, addAllyToBattle, lineSurge, GIMMICKS, UPS, MAX_UP_STACK, rollUps, buildStage, cellPos, drawBattle, drawSprite, iconDraw, allUrls, registerImg,
     rollRarity, rollUnit, startBattle, step, synergy, synergyBonus, unitMult, enhCost, shardValue, type Battle, type Unit,
   assignCells, optimizeFormation, unitPower, ENGRAVINGS, MAX_ENG, PROMOS, PROMO_DESC, engIndexOf, unitHp, unitAtk, unitHeal, CELL_X, evalGrid, rollCell, rollSymbolUnit, SYMBOLS, LINE_SUMMON, SPECIAL_SHARDS, type GridCell,
 } from './game';
@@ -280,7 +280,7 @@ export function App() {
             if (tgt) { const { t2, gain } = absorbCalc(tgt, mu); list = list.map((x) => (x.uid === tgt.uid ? t2 : x)); slotUp.push(`${tgt.def.name}|${gain}|${t2.lv}`); }
             else { list.push({ ...mu, off: true }); benched++; }
         }
-        const br = battleRef.current; if (phase === 'battle' && br && !br.result) { const on = list.filter((x) => !x.off); entered.forEach((u) => addAllyToBattle(br, u, on, cores, ups)); if (lineWins.length) lineSurge(br, lineWins.length, g[lineWins[0].cells[0]].u); setSurgePct(Math.round(((br.surge || 1) - 1) * 100)); }
+        const br = battleRef.current; if (phase === 'battle' && br && !br.result) { const on = list.filter((x) => !x.off); entered.forEach((u) => addAllyToBattle(br, u, on, cores, ups)); if (lineWins.length) lineSurge(br, lineWins.length, g[lineWins[0].cells[0]].u); setSurgePct(Math.round(((br.surge || 1) - 1) * 100)); if (lineWins.length) { const id = ++boonId.current; setBoonOffer({ lines: lineWins.length, id }); const nl = lineWins.length; setTimeout(() => { if (boonId.current === id) { const b2 = battleRef.current; if (b2 && !b2.result) applyBoon(b2, 'atk', nl); setBoonOffer((o) => (o && o.id === id ? null : o)); } }, 6000); } }
         if (made.length) parts.push(`${ev.wins.filter((w) => w.kind === 'line').length}줄 소환 ${made.length}기`); if (phase === 'battle' && lineWins.length) parts.push(`줄 기세 공격 +${lineWins.length * 6}%(당첨 심볼 계열 +${lineWins.length * 12}%)·체력 회복`); if (bonus) parts.push(`◆줄 코인 +${bonus}`); parts.push(...cx);
         setMsg(parts.join(' · ') + (slotUp.length ? ` · ${Object.entries(slotUp.reduce((m: Record<string, [number, number]>, s) => { const [n, gn, lv] = s.split('|'); const p = m[n] || [0, 0]; m[n] = [p[0] + Number(gn), Math.max(p[1], Number(lv))]; return m; }, {})).map(([n, v]) => `${n} 슬롯 강화 +${v[0]}${v[1] > 1 ? ` (★${v[1]})` : ''}`).join(', ')}` : '') + (benched ? ` · 출전 ${MAX_UNITS}기 가득: ${benched}기는 대기(유닛 선택 후 교체 가능)` : ''));
         setUnits(list);
@@ -328,9 +328,11 @@ export function App() {
         if (!ready || phase !== 'prep') return;
         const c = startBattle(units.filter((u) => !u.off), stage, true, cores, ups); c.events = []; battleRef.current = c;
     }, [units, phase, region, stageIdx, ready]); // eslint-disable-line
+    const [boonOffer, setBoonOffer] = useState<{ lines: number; id: number } | null>(null); const boonId = useRef(0);
+    const pickBoon = (k: 'atk' | 'heal' | 'cd') => { const br = battleRef.current; if (boonOffer && br && !br.result) { applyBoon(br, k, boonOffer.lines); setMsg(`줄 강화 선택: ${k === 'atk' ? '공격 +10%' : k === 'heal' ? '체력 30% 회복' : '공격 간격 -10%'} x${boonOffer.lines}줄 (우리 설계·임시)`); } setBoonOffer(null); };
     const [surgePct, setSurgePct] = useState(0); // 전투 중 줄 기세 누적(표시용)
     const startFight = () => {
-        setSurgePct(0);
+        setSurgePct(0); setBoonOffer(null); boonId.current++;
         if (!reg.ready || board.length === 0) { setMsg('먼저 소환해서 유닛을 모으세요'); return; }
         lootApplied.current = 0; battleRef.current = startBattle(board, stage, false, cores, ups); battleRef.current.events = []; fxRef.current?.clear(); setKills([0, stage.spawns.length]); setPhase('battle'); setMsg(''); setSel(null);
     };
@@ -364,6 +366,7 @@ export function App() {
         {cores.length > 0 && <div className="sb-info" style={{ flexDirection: 'column', gap: 2 }}><b>보유 코어 {cores.length}/{MAX_CORES}</b>{cores.map((id) => <span key={id}>{CORES.find((x) => x.id === id)?.name}: {CORES.find((x) => x.id === id)?.desc}</span>)}</div>}
         <div className="sb-syn"><span className="cnt">필드 유닛 {board.length}/{MAX_BOARD}{benchN ? ` · 대기 ${benchN}` : ''}</span><span>자동 이동 전투</span></div>
         {board.length >= MAX_UNITS && <div className="sb-fnote">출전 {MAX_UNITS}기 가득: 새로 나온 유닛은 대기로 가고, 출전 중인 같은 유닛이 있으면 그 유닛이 자동 강화됩니다(새 유닛만 흡수, 기존 유닛은 소모되지 않음).</div>}
+        {phase === 'battle' && boonOffer && <div className="sb-fnote" style={{ color: '#ffd36b' }}>줄 강화 선택 ({boonOffer.lines}줄, 6초 안에 고르지 않으면 공격 +10% 자동 · 우리 설계·임시)<div>{([['atk', '공격 +10%'], ['heal', '체력 30% 회복'], ['cd', '공격 간격 -10%']] as const).map(([k, n]) => <button key={k} type="button" className="sb-btn sm" style={{ margin: '3px 3px 0 0' }} onClick={() => pickBoon(k)}>{n}</button>)}</div></div>}
         {phase === 'battle' && <div className="sb-fnote" style={{ color: surgePct > 0 ? '#ffd36b' : undefined }}>줄 기세 +{surgePct}% (이번 전투, 줄 당첨마다 누적 · 우리 설계·임시)</div>}
         <div className="sb-fnote">난이도 {DIFFS.map((d, i) => <button key={d.n} disabled={phase === 'battle'} onClick={() => setDiff(i)} style={{ margin: '0 3px', padding: '1px 7px', fontWeight: i === diff ? 700 : 400, opacity: i === diff ? 1 : 0.6 }}>{d.n}</button>)} 적 강도 ×{DIFFS[diff].m} · 승리 코인 ×{DIFFS[diff].r} (우리 설계·임시, 미측정)</div>
         {GIMMICKS[reg.id] && <div className="sb-fnote">지역 기믹 [{GIMMICKS[reg.id]!.name}] {GIMMICKS[reg.id]!.desc} (우리 설계·임시)</div>}
