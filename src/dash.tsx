@@ -57,12 +57,12 @@ export function Dashboard(p: Props) {
             {Array.from({ length: p.cycle }, (_, i) => i + 1).map((c) => { const r = stats.cy[String(c)]; const n = r ? r.bw + r.bl : 0; return <div className="dash-bar" key={c} style={{ display: 'block' }}>{r ? <span><b>{c}회차</b> 전투 {n}회 (승 {r.bw} / 패 {r.bl}, 승률 {pct(r.bw, n)}%) · 코인 {r.ce} · 소환 {r.sp} · 처치 {r.kl} · {fmtTime(r.ps)}</span> : <span><b>{c}회차</b> 기록 없음 (회차별 집계 시작 전)</span>}</div>; })}
             <small>회차별 집계는 이번 업데이트 이후 전투부터 쌓입니다. 이전 회차 수치는 만들어 넣지 않습니다.</small>
         </div>
-        <div className="dash-sec"><b>지역 진행 ({totalDone}/{totalAll}{p.cycle > 1 ? ` · ${p.cycle}회차` : ''})</b>
+        <div className="dash-sec"><b>{p.cycle}회차 지역 진행 ({totalDone}/{totalAll}, 회차 시작 시 초기화)</b>
             {regions.filter((r) => r.ready !== false).map((r) => { const d = Array.from({ length: perRegion }, (_, k) => cleared[`${r.id}-${k + 1}`]).filter(Boolean).length; return <div className="dash-bar" key={r.id}><span>{r.id} {r.name}</span><div><i style={{ width: `${pct(d, perRegion)}%` }} /></div><em>{d}/{perRegion}</em></div>; })}
         </div>
-        <div className="dash-sec"><b>전투별 승리 횟수 (통계 집계 후)</b>
+        <div className="dash-sec"><b>전투별 누적 승리 횟수 (모든 회차 합산, 통계 집계 후)</b>
             <div className="dash-heat">{regions.filter((r) => r.ready !== false).map((r) => <div key={r.id} className="dash-hrow"><span>{r.id}</span>{Array.from({ length: perRegion }, (_, k) => { const c = stats.sc[`${r.id}-${k + 1}`] || 0; const done = !!cleared[`${r.id}-${k + 1}`]; return <i key={k} title={`${r.id}-${k + 1}: ${c}회 승리`} className={done ? 'on' : ''} style={c ? { opacity: 0.45 + 0.55 * (c / maxSc) } : undefined}>{c || (done ? '✓' : '')}</i>; })}</div>)}</div>
-            <small>숫자는 이 통계가 켜진 뒤의 승리 횟수, ✓는 이전에 클리어한 단계입니다.</small>
+            <small>숫자는 이 통계가 켜진 뒤의 승리 횟수, ✓는 현재 회차에서 클리어한 단계입니다.</small>
         </div>
         <div className="dash-sec"><b>보유 유닛 {units.length}기</b>
             <div className="dash-stack">{rc.map((c, i) => c ? <i key={i} style={{ flex: c, background: p.rarityColor[i] }} title={`${p.rarityName[i]} ${c}`}>{p.rarityName[i]} {c}</i> : null)}</div>

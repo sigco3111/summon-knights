@@ -642,6 +642,6 @@ export function autoPickBoard(units: Unit[], stage: StageDef, cores: string[], u
     return { uids: best ? best.uids : new Set(), winRate: best ? best.win : 0, hpLeft: best ? best.hp : 0, candidates: top.length, stageLabel: stage.label };
 }
 
-// 2회차 이상 단계별 적 강도(우리 설계·임시): 성장 완료 세이브 1개 기준 하드에서 남은 체력 약 0.6→0.45가 되도록 시뮬로 맞춘 값. 3회차+는 (1+0.6×(회차-2))배. 이지는 ×1.7, 노멀은 ×1.3 추가(앱에서 적용).
+// 2회차 이상 단계별 적 강도(우리 설계·임시): 성장 완료 세이브 1개 기준 하드에서 남은 체력 약 0.6→0.45가 되도록 시뮬로 맞춘 값. 3회차+는 (1+0.15×(회차-2))배. 이지는 ×1.7, 노멀은 ×1.3 추가(앱에서 적용).
 export const CYC2_MULT: number[] = [13.11,11.44,9.91,8.69,7.78,8.08,7.63,11.28,10.52,8.85,8.85,9,8.69,8.08,7.63,7.02,6.56,6.41,6.1,5.95,5.8,9.76,9.76,9.15,9.15,8.85,8.69,8.54,9,9,8.39,8.39,8.54,8.24,7.78,12.96,12.04,12.35,12.2,11.89,11.89,10.52,14.48,14.18,14.03,14.63,14.18,13.87,11.59,16.92,17.53,17.07,16.62,17.53,15.85,10.06];
-export const cycStageMult = (global: number, cycle: number) => (CYC2_MULT[global] ?? CYC2_MULT[CYC2_MULT.length - 1]) * (1 + 0.6 * (cycle - 2));
+export const cycStageMult = (global: number, cycle: number) => (CYC2_MULT[global] ?? CYC2_MULT[CYC2_MULT.length - 1]) * (1 + 0.15 * (cycle - 2));
