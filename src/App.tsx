@@ -189,7 +189,10 @@ export function App() {
 
     const reg = REGIONS[region];
     const board = units.filter((u) => !u.off); const benchN = units.length - board.length;
-    const stage = buildStage(reg, stageIdx);
+    const [diff, setDiffS] = useState<number>(() => { try { return Math.min(2, Math.max(0, parseInt(localStorage.getItem('sk-diff') || '1', 10) || 0)); } catch { return 1; } });
+    const setDiff = (d: number) => { setDiffS(d); try { localStorage.setItem('sk-diff', String(d)); } catch { /* */ } };
+    const DIFFS = [{ n: '이지', m: 0.8, r: 0.8 }, { n: '노멀', m: 1, r: 1 }, { n: '하드', m: 1.3, r: 1.5 }]; // 우리 설계, 임시(미측정)
+    const stage = (() => { const s0 = buildStage(reg, stageIdx); const d = DIFFS[diff]; return { ...s0, mult: s0.mult * d.m, reward: Math.round(s0.reward * d.r) }; })();
 
     useEffect(() => {
         if (!ready) return;
@@ -354,6 +357,7 @@ export function App() {
         {cores.length > 0 && <div className="sb-info" style={{ flexDirection: 'column', gap: 2 }}><b>보유 코어 {cores.length}/{MAX_CORES}</b>{cores.map((id) => <span key={id}>{CORES.find((x) => x.id === id)?.name}: {CORES.find((x) => x.id === id)?.desc}</span>)}</div>}
         <div className="sb-syn"><span className="cnt">필드 유닛 {board.length}/{MAX_BOARD}{benchN ? ` · 대기 ${benchN}` : ''}</span><span>자동 이동 전투</span></div>
         {board.length >= MAX_UNITS && <div className="sb-fnote">출전 {MAX_UNITS}기 가득: 새로 나온 유닛은 대기로 가고, 출전 중인 같은 유닛이 있으면 그 유닛이 자동 강화됩니다(새 유닛만 흡수, 기존 유닛은 소모되지 않음).</div>}
+        <div className="sb-fnote">난이도 {DIFFS.map((d, i) => <button key={d.n} disabled={phase === 'battle'} onClick={() => setDiff(i)} style={{ margin: '0 3px', padding: '1px 7px', fontWeight: i === diff ? 700 : 400, opacity: i === diff ? 1 : 0.6 }}>{d.n}</button>)} 적 강도 ×{DIFFS[diff].m} · 승리 코인 ×{DIFFS[diff].r} (우리 설계·임시, 미측정)</div>
         {GIMMICKS[reg.id] && <div className="sb-fnote">지역 기믹 [{GIMMICKS[reg.id]!.name}] {GIMMICKS[reg.id]!.desc} (우리 설계·임시)</div>}
         {phase !== 'win' && phase !== 'lose' && <div className="sb-msg">{msg}</div>}
         <div className="sb-slot">
