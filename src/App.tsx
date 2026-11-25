@@ -337,7 +337,9 @@ export function App() {
         else if (region < REGIONS.length - 1 && REGIONS[region + 1].ready) { setRegion(region + 1); toPrep(0); }
         else { toPrep(stageIdx); setMsg('다음 지역은 에셋 확보 전이라 잠겨 있습니다'); }
     };
-    const goStage = (ri: number, si: number) => { if (phase === 'battle') return; setRegion(ri); toPrep(si); setMap(false); };
+    // 지역 해금(우리 설계, 임시): 이전 지역 보스를 클리어해야 다음 지역 입장. 이미 그 지역(또는 이후)에 있는 기존 저장은 막지 않음
+    const regOpen = (ri: number) => ri === 0 || ri <= region || !!cleared[`${REGIONS[ri - 1].id}-${STAGES_PER_REGION}`];
+    const goStage = (ri: number, si: number) => { if (phase === 'battle') return; if (!regOpen(ri)) { setMsg(`${REGIONS[ri].id}지역은 ${REGIONS[ri - 1].id}지역 보스를 쓰러뜨리면 열립니다(임시 규칙)`); return; } setRegion(ri); toPrep(si); setMap(false); };
 
     const syn = synergy(board);
     return <div className="sb-app">
@@ -409,7 +411,7 @@ export function App() {
                 const done = Array.from({ length: STAGES_PER_REGION }, (_, k) => cleared[`${r.id}-${k + 1}`]).filter(Boolean).length;
                 return <div key={r.id} className={`sb-reg${ri === region ? ' cur' : ''}${r.ready ? '' : ' lock'}`}>
                     <div className="sb-reghead"><b>{r.id} {r.name}</b>{r.temp && <small className="sb-temp">개발중 · 임시 보스</small>}{r.ready && <span className="sb-regprog">{done}/{STAGES_PER_REGION}</span>}</div>
-                    {r.ready ? <div className="sb-dots">{Array.from({ length: STAGES_PER_REGION }, (_, k) => {
+                    {r.ready && !regOpen(ri) ? <small>잠김 · {REGIONS[ri - 1].id}지역 보스 클리어 필요 (우리 설계·임시)</small> : r.ready ? <div className="sb-dots">{Array.from({ length: STAGES_PER_REGION }, (_, k) => {
                         const isCur = ri === region && k === stageIdx;
                         const isDone = !!cleared[`${r.id}-${k + 1}`];
                         const elite = k === STAGES_PER_REGION - 2, boss = k === STAGES_PER_REGION - 1;
