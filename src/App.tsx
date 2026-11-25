@@ -89,7 +89,7 @@ export function App() {
     const [view, setView] = useState<GridCell[] | null>(null);
     const [pend, setPend] = useState<{ grid: GridCell[]; rerolled: boolean } | null>(null);
     const [held, setHeld] = useState<boolean[]>([false, false, false]);
-    const [spinning, setSpinning] = useState(false);
+    const [spinning, setSpinning] = useState(false); const [reelStop, setReelStop] = useState(3); const [tense, setTense] = useState(false);
     const [flash, setFlash] = useState(false);
     const [msg, setMsg] = useState('소환해서 유닛을 모으세요');
     const [kills, setKills] = useState<[number, number]>([0, 0]);
@@ -253,12 +253,12 @@ export function App() {
         const cols = [0, 1, 2]; const stopAt = [650, 1000, 1350];
         const near = GRID_LINES.some((l) => l[0] % 3 === 0 && l[1] % 3 === 1 && fin[l[0]].u === fin[l[1]].u); // 앞 두 칸이 같으면 마지막 릴을 늦게 멈춤(기대감 연출, 우리 설계·임시)
         if (near) { stopAt[2] = 2100; setMsg('두 칸 일치… 마지막 릴이 천천히 멈춥니다'); }
-        const t0 = performance.now();
+        const t0 = performance.now(); setReelStop(0); setTense(near);
         const iv = setInterval(() => {
-            const el = performance.now() - t0;
+            const el = performance.now() - t0; { const n = stopAt.filter((x, ci) => el >= x || (base && keep[ci])).length; setReelStop((p) => (p === n ? p : n)); }
             setView(Array.from({ length: 9 }, (_, i) => (el >= stopAt[i % 3] || (base && keep[i % 3]) ? fin[i] : rollCell())));
             if (el >= stopAt[2] + 40) {
-                clearInterval(iv); setView(fin); setGrid(fin); setSpinning(false); setPend({ grid: fin, rerolled: false }); { const e = evalGrid(fin); if (!(e.units || e.shards)) setCoins((c) => c + 1); setMsg(e.units || e.shards ? '한 줄 같은 아이콘 = 소환 (◆줄 = 코인)' : '무당첨 · 환급 ●1 · 리롤 ●1 또는 다시 소환'); };
+                clearInterval(iv); setReelStop(3); setTense(false); setView(fin); setGrid(fin); setSpinning(false); setPend({ grid: fin, rerolled: false }); { const e = evalGrid(fin); if (!(e.units || e.shards)) setCoins((c) => c + 1); setMsg(e.units || e.shards ? '한 줄 같은 아이콘 = 소환 (◆줄 = 코인)' : '무당첨 · 환급 ●1 · 리롤 ●1 또는 다시 소환'); };
             }
         }, 80);
         void cols;
@@ -427,7 +427,7 @@ export function App() {
                     const cur = (spinning ? view : (pend ? pend.grid : grid)); const cell = cur ? cur[i] : null;
                     const ev = !spinning && cur ? evalGrid(cur).wins : [];
                     const w = ev.find((x) => x.cells.includes(i));
-                    return <div key={i} className={`sb-cell${w ? ' win' : ''}${w && w.kind === 'special' ? ' jp' : ''}${held[i % 3] ? ' held' : ''}`}>{cell ? <SymIcon sym={cell.u} /> : <span>?</span>}</div>;
+                    return <div key={i} className={`sb-cell${spinning && reelStop <= i % 3 && !(held[i % 3]) ? ' rolling' : ''}${spinning && reelStop === (i % 3) + 1 ? ' hit' : ''}${spinning && tense && i % 3 === 2 && reelStop >= 2 ? ' tense' : ''}${w ? ' win' : ''}${w && w.kind === 'special' ? ' jp' : ''}${held[i % 3] ? ' held' : ''}`}>{cell ? <SymIcon sym={cell.u} /> : <span>?</span>}</div>;
                 })}</div>
                 <div className="sb-gridctl">{[0, 1, 2].map((c) => pend && !pend.rerolled
                     ? <button key={c} type="button" className="sb-mini" disabled={coins < REROLL_COST} onClick={() => rerollCol(c)}>↻{c + 1}열 ●{REROLL_COST}</button>
