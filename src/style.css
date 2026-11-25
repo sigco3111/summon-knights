@@ -262,3 +262,6 @@ body { background: #120c1a; }
 @media (max-width:480px){.sb-app .sb-fnote{font-size:11px;line-height:15px}}
 .sb-info .sb-btn.sm{flex-direction:column;align-items:flex-start;justify-content:center;gap:2px}
 .sb-info .sb-btn.sm small{white-space:normal;text-align:left;line-height:14px}
+/* 난이도 버튼: 기본 시스템 글꼴에 한글이 없으면 네모로 보이므로 게임 글꼴(Galmuri11) 상속 */
+.sb-fnote button{font-family:inherit;font-size:11px;color:#efeaf6;background:#2e2140;border:2px solid #6d5f86;cursor:pointer;min-height:26px}
+.sb-fnote button:disabled{opacity:.5}
