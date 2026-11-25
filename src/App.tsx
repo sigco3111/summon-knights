@@ -186,7 +186,7 @@ export function App() {
     const [speed, setSpeed] = useState(1); const speedRef = useRef(1); speedRef.current = speed;
     const [confirmReset, setConfirmReset] = useState(false);
     useEffect(() => { if (!confirmReset) return; const t = setTimeout(() => setConfirmReset(false), 10000); return () => clearTimeout(t); }, [confirmReset]);
-    const resetAll = () => { if (!confirmReset) { setConfirmReset(true); return; } setConfirmReset(false); setUnits([]); setCores([]); setUps([]); setUpOffer(null); setOffer(null); setSpins(0); setNudges(NUDGE_PER_WAVE); setCoins(12); setShards(0); setRegion(0); setStageIdx(0); setCleared({}); battleRef.current = null; setPend(null); setGrid(null); setView(null); setHeld([false, false, false]); setPhase('prep'); setMap(false); setMsg('처음부터 시작'); };
+    const resetAll = () => { if (!confirmReset) { setConfirmReset(true); return; } setConfirmReset(false); setUnits([]); setCores([]); setUps([]); setUpOffer(null); setOffer(null); setUpQ(0); setCoreQ(0); setSpins(0); setNudges(NUDGE_PER_WAVE); setCoins(12); setShards(0); setRegion(0); setStageIdx(0); setCleared({}); battleRef.current = null; setPend(null); setGrid(null); setView(null); setHeld([false, false, false]); setPhase('prep'); setMap(false); setMsg('처음부터 시작'); };
 
     const reg = REGIONS[region];
     const board = units.filter((u) => !u.off); const benchN = units.length - board.length;
@@ -214,8 +214,8 @@ export function App() {
                         if (b.result === 'win') {
                             setCleared((c) => ({ ...c, [st.label]: true }));
                             const rw = Math.round(st.reward * (coresRef.current.includes('purse') ? 1.25 : 1)) + 2 * upsRef.current.filter((x) => x === 'loot').length; setCoins((c) => c + rw);
-                            setUpOffer(rollUps(upsRef.current).map((x) => x.id));
-                            if (coresRef.current.length < MAX_CORES) setOffer(rollCores(coresRef.current).map((x) => x.id));
+                            { const ru = rollUps(upsRef.current).map((x) => x.id); if (ru.length) { if (autoRunRef.current && upOfferRef.current) setUpQ((n) => n + 1); else setUpOffer(ru); } }
+                            if (coresRef.current.length < MAX_CORES) { if (autoRunRef.current && offerRef.current) setCoreQ((n) => n + 1); else setOffer(rollCores(coresRef.current).map((x) => x.id)); }
                             setMsg(`승리 · 코인 +${rw}`);
                         } else {
                             setCoins((c) => c + 1);
@@ -395,6 +395,11 @@ export function App() {
     };
     const toPrep = (nextStage?: number) => { battleRef.current = null; setPhase('prep'); if (nextStage !== undefined) setStageIdx(nextStage); setKills([0, 0]); setMsg('소환으로 유닛을 모으고 전투 시작'); };
     const [ending, setEnding] = useState(false);
+    const [autoRun, setAutoRunS] = useState<boolean>(() => { try { return localStorage.getItem('sk-auto') === '1'; } catch { return false; } });
+    const autoGo = useRef(false);
+    const autoRunRef = useRef(false); autoRunRef.current = autoRun; const upOfferRef = useRef<string[] | null>(null); upOfferRef.current = upOffer; const offerRef = useRef<string[] | null>(null); offerRef.current = offer;
+    const [upQ, setUpQ] = useState(0); const [coreQ, setCoreQ] = useState(0); // 자동 진행 중 쌓인 보상 선택 대기 횟수(보상은 사라지지 않음)
+    const setAutoRun = (v: boolean) => { setAutoRunS(v); autoGo.current = false; try { localStorage.setItem('sk-auto', v ? '1' : '0'); } catch { /* */ } };
     const next = () => {
         if (stageIdx < STAGES_PER_REGION - 1) toPrep(stageIdx + 1);
         else if (region < REGIONS.length - 1 && REGIONS[region + 1].ready) { setRegion(region + 1); toPrep(0); }
@@ -403,6 +408,18 @@ export function App() {
     };
     // 지역 해금(우리 설계, 임시): 이전 지역 보스를 클리어해야 다음 지역 입장. 이미 그 지역(또는 이후)에 있는 기존 저장은 막지 않음
     const regOpen = (ri: number) => ri === 0 || ri <= region || !!cleared[`${REGIONS[ri - 1].id}-${STAGES_PER_REGION}`];
+    // 자동 진행(끔이 기본): 승리 후 선택 보상이 없으면 잠시 뒤 다음 전투를 자동 시작. 보상 선택이 남아 있으면 선택 완료 후 이어서 진행(보상은 자동 선택하지 않음). 패배·엔딩·잠긴 지역·유닛 없음에서는 멈춤
+    useEffect(() => {
+        if (!autoRun || phase !== 'win' || ending || pend) return;
+        const id = window.setTimeout(() => { autoGo.current = true; next(); }, 1500);
+        return () => window.clearTimeout(id);
+    }, [autoRun, phase, ending, pend]);
+    useEffect(() => {
+        if (!autoGo.current || phase !== 'prep') return;
+        autoGo.current = false;
+        if (!autoRun || ending) return;
+        startFight();
+    });
     const goStage = (ri: number, si: number) => { if (phase === 'battle') return; if (!regOpen(ri)) { setMsg(`${REGIONS[ri].id}지역은 ${REGIONS[ri - 1].id}지역 보스를 쓰러뜨리면 열립니다(임시 규칙)`); return; } setRegion(ri); toPrep(si); setMap(false); };
 
     const syn = synergy(board);
@@ -420,14 +437,15 @@ export function App() {
         </div>
         <div className="sb-opts"><span className="sb-tag">자동 이동 전투</span>
         <div className="sb-optrow">난이도 {DIFFS.map((d, i) => <button key={d.n} disabled={phase === 'battle'} onClick={() => setDiff(i)} style={{ margin: '0 3px', padding: '1px 7px', fontWeight: i === diff ? 700 : 400, opacity: i === diff ? 1 : 0.6 }}>{d.n}</button>)} 적 강도 ×{DIFFS[diff].m} · 승리 코인 ×{DIFFS[diff].r} (우리 설계·임시, 미측정)</div>
+        <div className="sb-optrow">자동 진행 <button type="button" aria-pressed={autoRun} onClick={() => setAutoRun(!autoRun)} style={{ margin: '0 3px', padding: '1px 9px', fontWeight: autoRun ? 700 : 400, opacity: autoRun ? 1 : 0.7 }}>{autoRun ? '켬' : '끔'}</button> {autoRun ? ((upOffer || offer) ? `선택 보상은 쌓아 두고 진행합니다${upQ + coreQ > 0 ? ` (대기 ${upQ + coreQ}회)` : ''}. 아래에서 골라 주세요` : phase === 'lose' ? '패배해서 멈춤: 정비 후 직접 시작하세요' : '승리하면 다음 전투를 자동 시작합니다(보상은 자동 선택하지 않고 쌓아 둠)') : '끔: 직접 다음 전투/전투 시작을 누릅니다'}</div>
         {GIMMICKS[reg.id] && <div className="sb-optrow">지역 기믹 [{GIMMICKS[reg.id]!.name}] {GIMMICKS[reg.id]!.desc} (우리 설계·임시)</div>}
         {ups.length > 0 && <div className="sb-optrow"><b>보유 강화</b> {UPS.filter((d) => ups.includes(d.id)).map((d) => `${d.name} x${ups.filter((x) => x === d.id).length}`).join(' · ')}</div>}
         {cores.length > 0 && <details className="sb-optrow sb-coredet"><summary><b>보유 코어 {cores.length}/{MAX_CORES}</b> {cores.map((id) => CORES.find((x) => x.id === id)?.name.replace(' 코어', '')).join(' · ')} <span className="sb-more">(효과 보기)</span></summary>{cores.map((id) => <div key={id}>{CORES.find((x) => x.id === id)?.name}: {CORES.find((x) => x.id === id)?.desc}</div>)}</details>}
         </div>
         <aside className="sb-side">
         {ending && phase !== 'battle' && <div className="sb-info" style={{ flexDirection: 'column' }}><b>전 지역 클리어 (개발중·임시 엔딩)</b><div>8개 지역, 56전투를 모두 돌파했습니다. 지금 단계에서는 별도 엔딩 연출이 없어, 최종 보스를 다시 도전하거나 지역 지도에서 이전 지역을 다시 플레이할 수 있습니다.</div><button type="button" className="sb-btn sm" onClick={() => setEnding(false)}>닫기</button></div>}
-        {upOffer && phase !== 'battle' && <div className="sb-info" style={{ flexDirection: 'column' }}><b>승리 보상: 강화 선택 (개발중·임시, 우리 설계)</b>{upOffer.map((id) => { const d = UPS.find((x) => x.id === id)!; return <button key={id} type="button" className="sb-btn sm" onClick={() => { setUps((p) => [...p, id]); setUpOffer(null); setMsg(`${d.name} 획득 (${ups.filter((x) => x === id).length + 1}/${MAX_UP_STACK})`); }}>{d.name} ({ups.filter((x) => x === id).length}/{MAX_UP_STACK})<small>{d.desc}</small></button>; })}</div>}
-        {offer && phase !== 'battle' && <div className="sb-info" style={{ flexDirection: 'column' }}><b>코어 선택 (개발중·임시)</b>{offer.map((id) => { const c = CORES.find((x) => x.id === id)!; return <button key={id} type="button" className="sb-btn sm" onClick={() => { setCores((p) => [...p, id]); setOffer(null); setMsg(`${c.name} 획득`); }}>{c.name}<small>{c.orig ? '[원작 문구] ' : '[우리 설계] '}{c.desc}</small></button>; })}</div>}
+        {upOffer && (phase !== 'battle' || autoRun) && <div className="sb-info" style={{ flexDirection: 'column' }}><b>승리 보상: 강화 선택 (개발중·임시, 우리 설계){upQ > 0 ? ` · 대기 ${upQ}회 더` : ''}</b>{upOffer.map((id) => { const d = UPS.find((x) => x.id === id)!; return <button key={id} type="button" className="sb-btn sm" onClick={() => { setUps((p) => [...p, id]); if (upQ > 0) { const nx = rollUps([...ups, id]).map((x) => x.id); setUpQ(upQ - 1); setUpOffer(nx.length ? nx : null); } else setUpOffer(null); setMsg(`${d.name} 획득 (${ups.filter((x) => x === id).length + 1}/${MAX_UP_STACK})`); }}>{d.name} ({ups.filter((x) => x === id).length}/{MAX_UP_STACK})<small>{d.desc}</small></button>; })}</div>}
+        {offer && (phase !== 'battle' || autoRun) && <div className="sb-info" style={{ flexDirection: 'column' }}><b>코어 선택 (개발중·임시){coreQ > 0 ? ` · 대기 ${coreQ}회 더` : ''}</b>{offer.map((id) => { const c = CORES.find((x) => x.id === id)!; return <button key={id} type="button" className="sb-btn sm" onClick={() => { setCores((p) => [...p, id]); if (coreQ > 0 && cores.length + 1 < MAX_CORES) { setCoreQ(coreQ - 1); setOffer(rollCores([...cores, id]).map((x) => x.id)); } else { setOffer(null); setCoreQ(0); } setMsg(`${c.name} 획득`); }}>{c.name}<small>{c.orig ? '[원작 문구] ' : '[우리 설계] '}{c.desc}</small></button>; })}</div>}
         <div className="sb-syn"><span className="cnt">필드 유닛 {board.length}/{MAX_BOARD}{benchN ? ` · 대기 ${benchN}` : ''} · 보유 {units.length}/{MAX_ROSTER}</span></div>
         {board.length >= MAX_UNITS && <div className="sb-fnote">출전 {MAX_UNITS}기 가득: 새로 나온 유닛은 대기로 가고, 출전 중인 같은 유닛이 있으면 그 유닛이 자동 강화됩니다(새 유닛만 흡수, 기존 유닛은 소모되지 않음).</div>}
         {phase === 'battle' && boonOffer && <div className="sb-fnote" style={{ color: '#ffd36b' }}>줄 강화 선택 ({boonOffer.lines}줄, 6초 안에 고르지 않으면 공격 +10% 자동 · 우리 설계·임시)<div>{([['atk', '공격 +10%'], ['heal', '체력 30% 회복'], ['cd', '공격 간격 -10%']] as const).map(([k, n]) => <button key={k} type="button" className="sb-btn sm" style={{ margin: '3px 3px 0 0' }} onClick={() => pickBoon(k)}>{n}</button>)}</div></div>}
