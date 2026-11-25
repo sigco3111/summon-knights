@@ -89,7 +89,8 @@ export function App() {
     const [phase, setPhase] = useState<'prep' | 'battle' | 'win' | 'lose'>('prep');
     const [grid, setGrid] = useState<GridCell[] | null>(null);
     const [view, setView] = useState<GridCell[] | null>(null);
-    const [capBlock, setCapBlock] = useState(false);
+    const [capBlock, setCapBlockRaw] = useState<boolean>(() => { try { return localStorage.getItem('sk-capblock') === '1'; } catch (e) { return false; } });
+    const setCapBlock = (v: boolean) => { setCapBlockRaw(v); try { localStorage.setItem('sk-capblock', v ? '1' : '0'); } catch (e) { /* 저장소 없음 */ } };
     const [pend, setPend] = useState<{ grid: GridCell[]; rerolled: boolean } | null>(null);
     const [held, setHeld] = useState<boolean[]>([false, false, false]);
     const [spinning, setSpinning] = useState(false); const [reelStop, setReelStop] = useState(3); const [tense, setTense] = useState(false);
