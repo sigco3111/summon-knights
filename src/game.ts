@@ -147,7 +147,7 @@ export interface Proj { x: number; y: number; target: Fighter; dmg: number; kind
 export interface Float { x: number; y: number; text: string; color: string; t: number; }
 export interface Battle {
     fighters: Fighter[]; projs: Proj[]; floats: Float[]; time: number; spawned: number; stage: StageDef;
-    result: null | 'win' | 'lose'; camp?: boolean; kills: number; total: number; rewarded?: boolean; loot?: number;
+    result: null | 'win' | 'lose'; camp?: boolean; kills: number; total: number; rewarded?: boolean; loot?: number; surge?: number;
     events?: { k: 'hit' | 'death' | 'boss' | 'heal'; x: number; y: number; flip: boolean }[];
 }
 
@@ -236,10 +236,16 @@ export function startBattle(board: Unit[], stage: StageDef, camp = false, cores:
     return { fighters, projs: [], floats: [], time: 0, spawned: 0, stage, result: null, kills: 0, total: stage.spawns.length, camp, loot: 0 };
 }
 /** 전투 중 소환: 새 유닛을 즉시 전장에 투입(슬롯은 웨이브 중에도 돌릴 수 있다). */
+// 줄 기세(우리 설계, 임시): 전투 중 줄 당첨 1줄마다 출전 아군 공격 +6%(전투 종료까지, 합류 유닛 포함), 체력 12% 회복
+export function lineSurge(b: Battle, lines: number) {
+    if (b.result || lines < 1) return;
+    const m = Math.pow(1.06, lines); b.surge = (b.surge || 1) * m;
+    for (const f of b.fighters) if (f.team === 'a' && !f.dead) { f.atk = Math.round(f.atk * m); f.hp = Math.min(f.maxHp, f.hp + f.maxHp * 0.12 * lines); b.events?.push({ k: 'heal', x: f.x, y: f.y - 4, flip: false }); }
+}
 export function addAllyToBattle(b: Battle, u: Unit, list: Unit[], cores: string[], ups: string[]) {
     if (b.result) return;
     const n = b.fighters.filter((f) => f.team === 'a').length;
-    const f = makeAlly(u, n % MAX_UNITS, list, b.stage, cores, ups); f.x = 6; f.baseX = 6; f.cdLeft = 200; b.fighters.push(f); b.events?.push({ k: 'heal', x: f.x, y: f.y - 4, flip: false });
+    const f = makeAlly(u, n % MAX_UNITS, list, b.stage, cores, ups); f.x = 6; f.baseX = 6; f.cdLeft = 200; if (b.surge) f.atk = Math.round(f.atk * b.surge); b.fighters.push(f); b.events?.push({ k: 'heal', x: f.x, y: f.y - 4, flip: false });
 }
 
 function spawnEnemy(b: Battle, id: string) {
