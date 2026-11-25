@@ -239,7 +239,7 @@ export function startBattle(board: Unit[], stage: StageDef, camp = false, cores:
 export function addAllyToBattle(b: Battle, u: Unit, list: Unit[], cores: string[], ups: string[]) {
     if (b.result) return;
     const n = b.fighters.filter((f) => f.team === 'a').length;
-    const f = makeAlly(u, n % MAX_UNITS, list, b.stage, cores, ups); f.x = 6; f.baseX = 6; f.cdLeft = 200; b.fighters.push(f);
+    const f = makeAlly(u, n % MAX_UNITS, list, b.stage, cores, ups); f.x = 6; f.baseX = 6; f.cdLeft = 200; b.fighters.push(f); b.events?.push({ k: 'heal', x: f.x, y: f.y - 4, flip: false });
 }
 
 function spawnEnemy(b: Battle, id: string) {
