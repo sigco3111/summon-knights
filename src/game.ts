@@ -113,9 +113,9 @@ export const GIMMICKS: Record<number, Gimmick | null> = {
 };
 export const STAGES_PER_REGION = 7; // 일반 5 + 정예 1 + 보스 1
 
-export interface StageDef { region: number; index: number; kind: '일반' | '정예' | '보스'; label: string; spawns: { id: string; at: number }[]; mult: number; reward: number; atkBoost?: number; }
+export interface StageDef { region: number; index: number; kind: '일반' | '정예' | '보스'; label: string; spawns: { id: string; at: number }[]; mult: number; reward: number; atkBoost?: number; sw?: number; }
 
-export const TUNE = { count: 1.4, open: 10, gap: 0.9, lateFrom: 6, lateCount: 1.0, lateOpen: 5 }; // 적 수 조정(우리 설계·임시): 전체 수 배율, 초반 몰려오는 수, 이후 간격 배율
+export const TUNE = { count: 1.4, open: 10, gap: 0.9, lateFrom: 6, lateCount: 1.8, lateOpen: 12, lateStat: 0.5, burstMs: 200 }; // 적 수 조정(우리 설계·임시): 전체 수 배율, 초반 몰려오는 수, 이후 간격 배율
 export function buildStage(region: RegionDef, index: number): StageDef {
     const kind: StageDef['kind'] = index === STAGES_PER_REGION - 1 ? '보스' : index === STAGES_PER_REGION - 2 ? '정예' : '일반';
     const global = (region.id - 1) * STAGES_PER_REGION + index;
@@ -126,11 +126,11 @@ export function buildStage(region: RegionDef, index: number): StageDef {
     let t = 1200;
     for (let i = 0; i < n; i++) {
         spawns.push({ id: region.pool[(i + index) % region.pool.length], at: t });
-        t += i < (region.id >= TUNE.lateFrom ? TUNE.lateOpen : TUNE.open) ? 320 : gap * TUNE.gap; // 초반에 한꺼번에 몰려오는 무리(아군 8기보다 많은 적과 동시에 싸우게 함, 우리 조정)
+        t += i < (region.id >= TUNE.lateFrom ? TUNE.lateOpen : TUNE.open) ? TUNE.burstMs : gap * TUNE.gap; // 초반에 한꺼번에 몰려오는 무리(아군 8기보다 많은 적과 동시에 싸우게 함, 우리 조정)
     }
     if (kind === '정예') { spawns.push({ id: region.elite, at: t + 800 }); spawns.push({ id: region.elite, at: t + 1600 }); }
     if (kind === '보스') spawns.push({ id: region.boss, at: t + 1500 });
-    return { region: region.id, index, kind, label: `${region.id}-${index + 1}`, spawns, mult: kind === '정예' ? mult * 1.08 : mult, reward: 5 + index + (kind === '보스' ? 10 : 0) };
+    return { region: region.id, index, kind, label: `${region.id}-${index + 1}`, spawns, mult: kind === '정예' ? mult * 1.08 : mult, sw: region.id >= TUNE.lateFrom ? TUNE.lateStat : 1, reward: 5 + index + (kind === '보스' ? 10 : 0) };
 }
 
 // ---------- runtime ----------
@@ -269,9 +269,9 @@ function spawnEnemy(b: Battle, id: string) {
     const d = ENEMIES[id];
     const lane = Math.floor(Math.random() * 3);
     const y = d.flying ? CELL_Y[lane] - 26 : CELL_Y[lane];
-    const m = b.stage.mult; const gm = GIMMICKS[b.stage.region]; const eh = gm?.eHp || 1, ea = gm?.eAtk || 1;
+    const swf = d.boss ? 1 : (b.stage.sw || 1); const m = b.stage.mult; const gm = GIMMICKS[b.stage.region]; const eh = gm?.eHp || 1, ea = gm?.eAtk || 1;
     b.fighters.push({
-        team: 'e', key: `e${b.fighters.length}_${Math.random()}`, sheet: d.sheet, x: W + 30, y, baseX: W + 30, hp: Math.round(d.hp * m * eh), maxHp: Math.round(d.hp * m * eh), atk: d.atk * (1 + (m - 1) * 0.6) * ea * (b.stage.atkBoost || 1), cd: d.cd,
+        team: 'e', key: `e${b.fighters.length}_${Math.random()}`, sheet: d.sheet, x: W + 30, y, baseX: W + 30, hp: Math.round(d.hp * m * eh * swf), maxHp: Math.round(d.hp * m * eh * swf), atk: d.atk * (1 + (m - 1) * 0.6) * ea * (b.stage.atkBoost || 1) * Math.sqrt(swf), cd: d.cd,
         range: d.range, speed: d.speed, px: d.px, face: -1, state: 'move', t: 0, fired: false, cdLeft: 400, target: null, flying: d.flying, boss: d.boss, hue: d.hue, dead: false, fade: 1, hitT: 0, name: d.name,
     });
 }
