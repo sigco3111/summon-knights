@@ -235,7 +235,7 @@ export function App() {
     const heldCount = held.filter(Boolean).length;
     const [spins, setSpins] = useState(0); const [nudges, setNudges] = useState(NUDGE_PER_WAVE);
     useEffect(() => { setSpins(0); setNudges(NUDGE_PER_WAVE); }, [region, stageIdx]);
-    const spinCost = SUMMON_COST + Math.min(3, Math.floor(spins / 3)); void heldCount;
+    const spinCost = SUMMON_COST + (units.length < 3 ? 0 : Math.min(3, Math.floor(spins / 3))); // 유닛 3기 미만이면 비용 상승 없음(초반 완화, 우리 조정·임시) void heldCount;
     const nudge = (c: number) => {
         if (!pend || nudges < 1 || spinning) return;
         const ng = pend.grid.map((cell, i) => { if (i % 3 !== c) return cell; const r = Math.floor(i / 3); return pend.grid[((r + 2) % 3) * 3 + c]; });
