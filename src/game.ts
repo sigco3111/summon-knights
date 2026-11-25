@@ -243,7 +243,7 @@ export function lineSurge(b: Battle, lines: number, sym?: number) {
     const kin = sym !== undefined && SYMBOLS[sym] ? SYMBOLS[sym].group.map((i) => ALLIES[i].name) : [];
     for (const f of b.fighters) if (f.team === 'a' && !f.dead) {
         const mm = kin.includes(f.name) ? Math.pow(1.12, lines) : m; // 같은 심볼 계열 유닛은 2배 보너스(우리 설계, 임시)
-        f.atk = Math.round(f.atk * mm); f.hp = Math.min(f.maxHp, f.hp + f.maxHp * 0.12 * lines); b.events?.push({ k: 'heal', x: f.x, y: f.y - 4, flip: false });
+        f.atk = Math.round(f.atk * mm); f.hp = Math.min(f.maxHp, f.hp + f.maxHp * 0.12 * lines * BATTLE_PACE); b.events?.push({ k: 'heal', x: f.x, y: f.y - 4, flip: false });
     }
 }
 // 줄 강화 선택(우리 설계, 임시): 전투 중 줄 당첨 후 고르는 추가 강화. atk +10%/줄, heal 최대체력 30%/줄, cd -10%/줄(전투 종료까지)
@@ -252,7 +252,7 @@ export function applyBoon(b: Battle, kind: Boon, lines: number) {
     if (b.result || lines < 1) return;
     for (const f of b.fighters) if (f.team === 'a' && !f.dead) {
         if (kind === 'atk') f.atk = Math.round(f.atk * Math.pow(1.1, lines));
-        else if (kind === 'heal') f.hp = Math.min(f.maxHp, f.hp + f.maxHp * 0.3 * lines);
+        else if (kind === 'heal') f.hp = Math.min(f.maxHp, f.hp + f.maxHp * 0.3 * lines * BATTLE_PACE);
         else f.cd = Math.max(300, Math.round(f.cd * Math.pow(0.9, lines)));
         b.events?.push({ k: 'heal', x: f.x, y: f.y - 4, flip: false });
     }
@@ -274,11 +274,14 @@ function spawnEnemy(b: Battle, id: string) {
     });
 }
 
+// 전투 길이 조절(우리 조정): 아군·적 피해/치유를 같은 비율로 낮추고 적 등장 간격도 같은 비율로 늘려 승패 균형은 유지하면서 전투를 길게 함
+export const BATTLE_PACE = 0.55;
 const ATK_MS = 560;
 const HIT_MS = 260;
 
 function damage(b: Battle, f: Fighter, dmg: number) {
     if (f.dead) return;
+    dmg *= BATTLE_PACE;
     f.hp -= dmg;
     b.events?.push({ k: 'hit', x: f.x, y: f.y - f.px * 0.5, flip: f.team === 'e' });
     b.floats.push({ x: f.x, y: f.y - f.px - 4, text: String(Math.round(dmg)), color: f.team === 'e' ? '#fff3b0' : '#ff9a8a', t: 0 });
@@ -290,7 +293,7 @@ export function step(b: Battle, dt: number) {
     if (b.result) { b.time += dt; b.fighters.forEach((f) => { f.t += dt; }); return; }
     b.time += dt;
     const sp = b.stage.spawns;
-    while (!b.camp && b.spawned < sp.length && sp[b.spawned].at <= b.time) { spawnEnemy(b, sp[b.spawned].id); b.spawned++; }
+    while (!b.camp && b.spawned < sp.length && sp[b.spawned].at <= b.time * BATTLE_PACE) { spawnEnemy(b, sp[b.spawned].id); b.spawned++; }
     const allies = b.fighters.filter((f) => f.team === 'a' && !f.dead);
     const enemies = b.fighters.filter((f) => f.team === 'e' && !f.dead);
     for (const f of b.fighters) {
@@ -359,7 +362,7 @@ export function step(b: Battle, dt: number) {
     for (const p of b.projs) {
         const tx = p.target.x, ty = p.target.y - p.target.px * 0.5;
         const dx = tx - p.x, dy = ty - p.y; const d = Math.hypot(dx, dy) || 1; const v = 340 * dt / 1000;
-        if (d <= v + 4 || p.target.dead) { (p as Proj & { done?: boolean }).done = true; if (!p.target.dead) { if (p.heal) { p.target.hp = Math.min(p.target.maxHp, p.target.hp + p.dmg); b.events?.push({ k: 'heal', x: p.target.x, y: p.target.y - 4, flip: false }); b.floats.push({ x: p.target.x, y: p.target.y - p.target.px - 4, text: '+' + Math.round(p.dmg), color: '#9be39a', t: 0 }); } else damage(b, p.target, p.dmg); } }
+        if (d <= v + 4 || p.target.dead) { (p as Proj & { done?: boolean }).done = true; if (!p.target.dead) { if (p.heal) { p.target.hp = Math.min(p.target.maxHp, p.target.hp + p.dmg * BATTLE_PACE); b.events?.push({ k: 'heal', x: p.target.x, y: p.target.y - 4, flip: false }); b.floats.push({ x: p.target.x, y: p.target.y - p.target.px - 4, text: '+' + Math.round(p.dmg), color: '#9be39a', t: 0 }); } else damage(b, p.target, p.dmg); } }
         else { p.x += (dx / d) * v; p.y += (dy / d) * v; }
     }
     b.projs = b.projs.filter((p) => !(p as Proj & { done?: boolean }).done);
