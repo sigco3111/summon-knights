@@ -599,3 +599,40 @@ export function rollSymbolUnit(sym: number, extra = 0): { def: UnitDef; r: Rarit
     for (const i of grp) { r -= UNIT_W[i]; if (r <= 0) { pick = i; break; } }
     return { def: ALLIES[pick], r: extra > 0 ? rollRarityDup(extra) : rollRarity() };
 }
+
+/** 자동 출전(우리 설계·임시): 역할 조합(시너지+코어 보정)으로 후보를 만들고 현재 스테이지를 실제 전투 코드로 모의해 가장 좋은 출전 명단(uid 집합)을 고른다. */
+export interface AutoPickResult { uids: Set<number>; winRate: number; hpLeft: number; candidates: number; stageLabel: string; }
+export function autoPickBoard(units: Unit[], stage: StageDef, cores: string[], ups: string[], runs = 6, max = MAX_UNITS): AutoPickResult {
+    const roles = ['전열', '딜러', '원거리', '지원'];
+    const total = Math.min(max, units.length);
+    const byRole: Record<string, Unit[]> = {};
+    roles.forEach((r) => { byRole[r] = units.filter((u) => u.def.role === r).sort((a, b) => unitPower(b) - unitPower(a)); });
+    const pats: { pick: Unit[]; analytic: number }[] = [];
+    const rec = (ri: number, left: number, pick: Unit[]) => {
+        if (ri === roles.length) {
+            if (left !== 0) return;
+            const cnt: Record<string, number> = {}; pick.forEach((u) => { cnt[u.def.role] = (cnt[u.def.role] || 0) + 1; });
+            let s = 0; pick.forEach((u) => { const cm = coreMods(cores, pick, u); s += unitPower(u) * Math.sqrt(cm.atk * cm.hp) * (1 + synergyBonus(cnt[u.def.role])); });
+            pats.push({ pick: [...pick], analytic: s }); return;
+        }
+        const avail = byRole[roles[ri]].length;
+        for (let k = 0; k <= Math.min(avail, left); k++) rec(ri + 1, left - k, [...pick, ...byRole[roles[ri]].slice(0, k)]);
+    };
+    rec(0, total, []);
+    pats.sort((a, b) => b.analytic - a.analytic);
+    const top = pats.slice(0, 6);
+    let best: { uids: Set<number>; score: number; win: number; hp: number } | null = null;
+    for (const p of top) {
+        let win = 0, hp = 0, tm = 0;
+        for (let i = 0; i < runs; i++) {
+            const b = startBattle(p.pick.map((u) => ({ ...u })), stage, false, cores, ups); let g = 0;
+            while (!b.result && g++ < 20000) step(b, 50);
+            if (b.result === 'win') win++;
+            const al = b.fighters.filter((f) => f.team === 'a'); const mh = al.reduce((s, f) => s + f.maxHp, 0) || 1;
+            hp += al.reduce((s, f) => s + (f.dead ? 0 : Math.max(0, f.hp)), 0) / mh; tm += b.time;
+        }
+        const score = (win / runs) * 1000 + (hp / runs) * 100 - tm / runs / 1000 + p.analytic * 0.001;
+        if (!best || score > best.score) best = { uids: new Set(p.pick.map((u) => u.uid)), score, win: win / runs, hp: hp / runs };
+    }
+    return { uids: best ? best.uids : new Set(), winRate: best ? best.win : 0, hpLeft: best ? best.hp : 0, candidates: top.length, stageLabel: stage.label };
+}

@@ -16,7 +16,7 @@ const BG_SRC: Record<string, string> = { grotto, forest: bgforest, canopy: bgcan
 import {
     ALLIES, MAX_UNITS, lineSurge, applyBoon, GRID_LINES, MAX_ROSTER, PROMOS2, PROMO2_DESC, REGIONS, RARITY_NAME, RARITY_COLOR, STAGES_PER_REGION, W, H, MAX_LV, MAX_ENH, STAR_AT, IMP_SLOTS, starOf, absFromStar, CORES, MAX_CORES, rollCores, addAllyToBattle, lineSurge, GIMMICKS, UPS, MAX_UP_STACK, rollUps, buildStage, cellPos, drawBattle, drawSprite, iconDraw, allUrls, registerImg,
     rollRarity, rollUnit, startBattle, step, synergy, synergyBonus, unitMult, enhCost, shardValue, type Battle, type Unit,
-  assignCells, optimizeFormation, unitPower, ENGRAVINGS, MAX_ENG, PROMOS, PROMO_DESC, engIndexOf, unitHp, unitAtk, unitHeal, CELL_X, evalGrid, rollCell, rollSymbolUnit, SYMBOLS, LINE_SUMMON, SPECIAL_SHARDS, type GridCell,
+  assignCells, optimizeFormation, autoPickBoard, unitPower, ENGRAVINGS, MAX_ENG, PROMOS, PROMO_DESC, engIndexOf, unitHp, unitAtk, unitHeal, CELL_X, evalGrid, rollCell, rollSymbolUnit, SYMBOLS, LINE_SUMMON, SPECIAL_SHARDS, type GridCell,
 } from './game';
 
 const SUMMON_COST = 1; // 기본. 웨이브 안에서 스핀할수록 오름(우리 설계, 임시)
@@ -243,7 +243,8 @@ export function App() {
     };
     const summon = () => {
         if (pend) { const e = evalGrid(pend.grid); if (e.units || e.shards) { commit(pend.grid); return; } }
-        if (spinning || coins < spinCost || units.length >= MAX_ROSTER) return;
+        if (units.length >= MAX_ROSTER && !spinning) { setMsg(`보유 ${units.length}/${MAX_ROSTER} 가득: 더 이상 소환할 수 없습니다. 흡수로 정리하세요`); return; }
+        if (spinning || coins < spinCost) return;
         if (pend) setPend(null);
         setCoins((c) => c - spinCost); setSpins((n) => n + 1); setSpinning(true); setSel(null); setFlash(false);
         const base = grid; const keep = held.slice();
@@ -273,15 +274,16 @@ export function App() {
         if (cores.includes('tri') && lineWins.length >= 3) { setCoins((c) => c + 3); cx.push('삼연 코어: 코인 +3'); }
         const bonus = Math.round(ev.shards * 0.6); if (bonus) setCoins((c) => c + bonus);
         const parts: string[] = [];
-        let list = [...units]; let benched = 0; const slotUp: string[] = []; const entered: Unit[] = [];
+        let overflowAbs = 0, overflowCoin = 0; let list = [...units]; let benched = 0; const slotUp: string[] = []; const entered: Unit[] = [];
         for (const mu of made) {
+            if (list.length >= MAX_ROSTER) { const t0 = list.filter((x) => x.def.id === mu.def.id).sort((p, q) => (q.abs || 1) - (p.abs || 1))[0]; if (t0) { const { t2 } = absorbCalc(t0, mu); list = list.map((x) => (x.uid === t0.uid ? t2 : x)); overflowAbs++; } else { setCoins((c) => c + 3); overflowCoin++; } continue; }
             if (list.filter((x) => !x.off).length < MAX_UNITS) { list.push(mu); entered.push(mu); continue; }
             const tgt = list.filter((x) => !x.off && x.def.id === mu.def.id).sort((p, q) => (q.abs || 1) - (p.abs || 1))[0];
             if (tgt) { const { t2, gain } = absorbCalc(tgt, mu); list = list.map((x) => (x.uid === tgt.uid ? t2 : x)); slotUp.push(`${tgt.def.name}|${gain}|${t2.lv}`); }
             else { list.push({ ...mu, off: true }); benched++; }
         }
         const br = battleRef.current; if (phase === 'battle' && br && !br.result) { const on = list.filter((x) => !x.off); entered.forEach((u) => addAllyToBattle(br, u, on, cores, ups)); if (lineWins.length) lineSurge(br, lineWins.length, g[lineWins[0].cells[0]].u); setSurgePct(Math.round(((br.surge || 1) - 1) * 100)); if (lineWins.length) { const id = ++boonId.current; setBoonOffer({ lines: lineWins.length, id }); const nl = lineWins.length; setTimeout(() => { if (boonId.current === id) { const b2 = battleRef.current; if (b2 && !b2.result) { applyBoon(b2, 'atk', nl); setMsg('줄 강화 자동 적용: 공격 +10% x'+nl+'줄 (우리 설계·임시)'); } setBoonOffer((o) => (o && o.id === id ? null : o)); } }, 6000); } }
-        if (made.length) parts.push(`${ev.wins.filter((w) => w.kind === 'line').length}줄 소환 ${made.length}기`); if (phase === 'battle' && lineWins.length) parts.push(`줄 기세 공격 +${lineWins.length * 6}%(당첨 심볼 계열 +${lineWins.length * 12}%)·체력 회복`); if (bonus) parts.push(`◆줄 코인 +${bonus}`); parts.push(...cx);
+        if (made.length) parts.push(`${ev.wins.filter((w) => w.kind === 'line').length}줄 소환 ${made.length}기`); if (phase === 'battle' && lineWins.length) parts.push(`줄 기세 공격 +${lineWins.length * 6}%(당첨 심볼 계열 +${lineWins.length * 12}%)·체력 회복`); if (bonus) parts.push(`◆줄 코인 +${bonus}`); parts.push(...cx); if (overflowAbs || overflowCoin) parts.push(`보유 가득: 초과 ${overflowAbs + overflowCoin}기는 ${overflowAbs ? `흡수 ${overflowAbs}` : ''}${overflowAbs && overflowCoin ? '·' : ''}${overflowCoin ? `코인 +${overflowCoin * 3}` : ''}로 처리`);
         setMsg(parts.join(' · ') + (slotUp.length ? ` · ${Object.entries(slotUp.reduce((m: Record<string, [number, number]>, s) => { const [n, gn, lv] = s.split('|'); const p = m[n] || [0, 0]; m[n] = [p[0] + Number(gn), Math.max(p[1], Number(lv))]; return m; }, {})).map(([n, v]) => `${n} 슬롯 강화 +${v[0]}${v[1] > 1 ? ` (★${v[1]})` : ''}`).join(', ')}` : '') + (benched ? ` · 출전 ${MAX_UNITS}기 가득: ${benched}기는 대기(유닛 선택 후 교체 가능)` : ''));
         setUnits(list);
         setPend(null); setFlash(true); setUndo(null); setTimeout(() => setFlash(false), 900);
@@ -304,6 +306,42 @@ export function App() {
     const promote2 = (br: number) => {
         if (!selUnit || selUnit.lv < 3 || !selUnit.promo || selUnit.promo2) return;
         setUnits(units.map((u) => (u.uid === selUnit.uid ? { ...u, promo2: br + 1 } : u))); setMsg(`${selUnit.def.name} 2차 승급: ${PROMOS2[selUnit.def.role][br]}`);
+    };
+    const [busyAuto, setBusyAuto] = useState(false); const [absPlan, setAbsPlan] = useState<{ src: number; tgt: number }[] | null>(null);
+    const autoDeploy = () => {
+        if (phase === 'battle' || busyAuto || units.length === 0) return;
+        setBusyAuto(true); setMsg('자동 출전 계산 중... (현재 전투를 모의해 가장 좋은 편성을 고릅니다)');
+        setTimeout(() => {
+            try {
+                const r = autoPickBoard(units, stage, cores, ups);
+                if (!r.uids.size) { setMsg('자동 출전할 유닛이 없습니다'); return; }
+                setUnits(units.map((u) => ({ ...u, off: !r.uids.has(u.uid) })));
+                setMsg(`자동 출전 완료 ${r.uids.size}기 · ${r.stageLabel} 모의 승률 ${Math.round(r.winRate * 100)}%, 남는 체력 ${Math.round(r.hpLeft * 100)}% (역할 시너지·코어 반영, 우리 설계·임시, 대기 유닛은 삭제 아님)`);
+            } finally { setBusyAuto(false); }
+        }, 30);
+    };
+    const planAbsorbAll = () => {
+        const byDef = new Map<string, Unit[]>();
+        units.forEach((u) => { const a = byDef.get(u.def.id) || []; a.push(u); byDef.set(u.def.id, a); });
+        const plan: { src: number; tgt: number }[] = [];
+        byDef.forEach((arr) => {
+            if (arr.length < 2) return;
+            const tgt = [...arr].sort((p, q) => ((q.abs || 1) - (p.abs || 1)) || (Number(!p.off) - Number(!q.off)) || (q.rarity - p.rarity))[0];
+            arr.filter((u) => u.uid !== tgt.uid && u.off).forEach((u) => plan.push({ src: u.uid, tgt: tgt.uid }));
+        });
+        return plan;
+    };
+    const askAbsorbAll = () => { const plan = planAbsorbAll(); if (!plan.length) { setMsg('일괄 흡수할 대기 중복 유닛이 없습니다. (출전 중인 유닛과 중복 아닌 유닛은 건드리지 않음)'); return; } setAbsPlan(plan); setMsg(`대기 중 같은 유닛 ${plan.length}기를 같은 종류의 가장 강한 유닛에 흡수합니다. 흡수는 되돌릴 수 없으니 확인을 눌러 주세요.`); };
+    const doAbsorbAll = () => {
+        if (!absPlan) return;
+        let list = [...units]; let gainSum = 0; let stars = 0; const tg = new Set<number>();
+        for (const { src, tgt } of absPlan) {
+            const s = list.find((u) => u.uid === src); const t = list.find((u) => u.uid === tgt); if (!s || !t) continue;
+            const r = absorbCalc(t, s); gainSum += r.gain; stars += Math.max(0, r.t2.lv - t.lv); tg.add(tgt);
+            list = list.filter((u) => u.uid !== src).map((u) => (u.uid === tgt ? r.t2 : u));
+        }
+        setUnits(list); setAbsPlan(null); setSel(null); setAbsorbFor(null);
+        setMsg(`일괄 흡수 완료: ${absPlan.length}기 → ${tg.size}종 유닛, 흡수Lv 합계 +${gainSum}${stars ? ` · ★ 상승 ${stars}단계` : ''} (출전 유닛은 그대로, 우리 설계·임시)`);
     };
     const toggleOff = (uid: number) => {
         const t = units.find((u) => u.uid === uid); if (!t) return;
@@ -364,7 +402,7 @@ export function App() {
         {ups.length > 0 && <div className="sb-info" style={{ flexDirection: 'column', gap: 2 }}><b>보유 강화</b><span>{UPS.filter((d) => ups.includes(d.id)).map((d) => `${d.name} x${ups.filter((x) => x === d.id).length}`).join(' · ')}</span></div>}
         {offer && <div className="sb-info" style={{ flexDirection: 'column' }}><b>코어 선택 (개발중·임시)</b>{offer.map((id) => { const c = CORES.find((x) => x.id === id)!; return <button key={id} type="button" className="sb-btn sm" onClick={() => { setCores((p) => [...p, id]); setOffer(null); setMsg(`${c.name} 획득`); }}>{c.name}<small>{c.orig ? '[원작 문구] ' : '[우리 설계] '}{c.desc}</small></button>; })}</div>}
         {cores.length > 0 && <div className="sb-info" style={{ flexDirection: 'column', gap: 2 }}><b>보유 코어 {cores.length}/{MAX_CORES}</b>{cores.map((id) => <span key={id}>{CORES.find((x) => x.id === id)?.name}: {CORES.find((x) => x.id === id)?.desc}</span>)}</div>}
-        <div className="sb-syn"><span className="cnt">필드 유닛 {board.length}/{MAX_BOARD}{benchN ? ` · 대기 ${benchN}` : ''}</span><span>자동 이동 전투</span></div>
+        <div className="sb-syn"><span className="cnt">필드 유닛 {board.length}/{MAX_BOARD}{benchN ? ` · 대기 ${benchN}` : ''} · 보유 {units.length}/{MAX_ROSTER}</span><span>자동 이동 전투</span></div>
         {board.length >= MAX_UNITS && <div className="sb-fnote">출전 {MAX_UNITS}기 가득: 새로 나온 유닛은 대기로 가고, 출전 중인 같은 유닛이 있으면 그 유닛이 자동 강화됩니다(새 유닛만 흡수, 기존 유닛은 소모되지 않음).</div>}
         {phase === 'battle' && boonOffer && <div className="sb-fnote" style={{ color: '#ffd36b' }}>줄 강화 선택 ({boonOffer.lines}줄, 6초 안에 고르지 않으면 공격 +10% 자동 · 우리 설계·임시)<div>{([['atk', '공격 +10%'], ['heal', '체력 30% 회복'], ['cd', '공격 간격 -10%']] as const).map(([k, n]) => <button key={k} type="button" className="sb-btn sm" style={{ margin: '3px 3px 0 0' }} onClick={() => pickBoon(k)}>{n}</button>)}</div></div>}
         {phase === 'battle' && <div className="sb-fnote" style={{ color: surgePct > 0 ? '#ffd36b' : undefined }}>줄 기세 +{surgePct}% (이번 전투, 줄 당첨마다 누적 · 우리 설계·임시)</div>}
@@ -406,6 +444,13 @@ export function App() {
         <div className={`sb-save${saved.ready ? '' : ' warn'}`} role="status">{saved.ready ? (/not saved/i.test(saved.message || '') ? '저장 불가: 창을 닫으면 진행이 사라집니다. 지역 메뉴의 저장 코드를 보관하세요.' : '이 기기에 자동 저장됩니다.') : '저장 상태 확인 중'}</div>
         </aside>
         </div>
+        <div className="sb-syn" style={{ margin: '4px 8px' }}>
+            <button type="button" className="sb-btn sm" disabled={phase === 'battle' || busyAuto || units.length === 0} onClick={autoDeploy}>{busyAuto ? '계산 중...' : '자동 출전'}<small>모의 전투로 최적 {MAX_UNITS}기</small></button>
+            {!absPlan ? <button type="button" className="sb-btn sm" disabled={phase === 'battle' || units.length < 2} onClick={askAbsorbAll}>중복 일괄 흡수<small>대기 중복 → 같은 유닛</small></button>
+                : <><button type="button" className="sb-btn sm" onClick={doAbsorbAll}>흡수 확인 ({absPlan.length}기)<small>되돌릴 수 없음</small></button><button type="button" className="sb-btn sm ghost" onClick={() => setAbsPlan(null)}>취소</button></>}
+        </div>
+        {units.length >= MAX_ROSTER && <div className="sb-fnote" style={{ color: '#ff8a7a', margin: '0 8px' }}>보유 {units.length}/{MAX_ROSTER} 가득: 더 이상 소환할 수 없어 슬롯이 막혔습니다. 중복 일괄 흡수나 흡수로 정리하세요.</div>}
+        {units.length < MAX_ROSTER && units.length >= MAX_ROSTER - 3 && <div className="sb-fnote" style={{ color: '#ffd36b', margin: '0 8px' }}>보유 {units.length}/{MAX_ROSTER}: 곧 가득 찹니다. 한 번에 여러 기가 나오면 초과분은 흡수/코인으로 처리됩니다.</div>}
         <div className="sb-bench">
             {units.length === 0 && <span className="sb-empty">보유 유닛 없음 · 소환하세요</span>}
             {[...units.filter((u) => !u.off), ...units.filter((u) => u.off)].map((u) => <button type="button" key={u.uid} className={`sb-unit${sel === u.uid ? ' is-sel' : ''}${u.off ? ' is-off' : ''}`} style={{ borderColor: RARITY_COLOR[u.rarity] }} onClick={() => { if (swapFor !== null && !u.off && swapFor !== u.uid) swapWith(u.uid); else if (absorbFor !== null && absorbFor !== u.uid) absorb(u.uid); else setSel(sel === u.uid ? null : u.uid); }}>
